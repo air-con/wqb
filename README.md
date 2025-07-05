@@ -22,6 +22,103 @@ A better machine lib.
   - [(Asynchronous & Concurrent) Check Submission](#check)
   - [(Asynchronous & Concurrent) Submit](#submit)
 
+## Docker & Celery Usage
+
+This project is configured to run as a distributed task queue using Docker, Celery, and RabbitMQ. This allows for scalable and asynchronous processing of simulations.
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+### Setup
+
+1.  **Configure Environment Variables:**
+
+    Create a `.env` file in the project root by copying the example file:
+
+    ```sh
+    cp .env.example .env
+    ```
+
+    Open the `.env` file and replace `your_api_key_here` with your actual WorldQuant BRAIN API key.
+
+2.  **Build and Start the Services:**
+
+    Run the following command to build the Docker images and start the RabbitMQ broker, Celery workers, and the main application container in the background:
+
+    ```sh
+    docker-compose up -d --build
+    ```
+
+### How to Use
+
+There are two ways to send simulation tasks to the Celery workers: processing a batch of alphas or processing a single alpha.
+
+1.  **Access the Application Container:**
+
+    First, get an interactive shell inside the `app` container:
+
+    ```sh
+    docker-compose exec app bash
+    ```
+
+2.  **Send a Simulation Task:**
+
+    From the shell inside the container, open a Python interpreter. You can then import the Celery tasks and send your data.
+
+    #### Option A: Processing a Batch of Alphas
+
+    This is the most efficient method for processing a large number of alphas. The `simulate_alpha_task` will group the alphas into smaller chunks and process them sequentially within a single Celery task, respecting API limits.
+
+    ```python
+    from wqb.tasks import simulate_alpha_task
+
+    # This represents a list of alphas you might get from RabbitMQ
+    alphas_to_simulate = [
+        {'type': 'REGULAR', 'settings': {...}, 'regular': '...'}, # Alpha 1
+        {'type': 'REGULAR', 'settings': {...}, 'regular': '...'}, # Alpha 2
+        # ... add up to N alphas here ...
+    ]
+
+    # Send the entire batch to a single Celery worker for sequential processing.
+    task = simulate_alpha_task.delay(alphas_to_simulate)
+    print(f"Sent batch task with ID: {task.id}")
+    ```
+
+    #### Option B: Processing a Single Alpha
+
+    This method is useful for processing individual, high-priority alphas. Each call to `delay` sends one alpha to the Celery queue to be processed by any available worker.
+
+    ```python
+    from wqb.tasks import simulate_single_alpha_task
+
+    # This represents a single alpha definition.
+    single_alpha = {'type': 'REGULAR', 'settings': {...}, 'regular': 'liabilities/assets'}
+
+    # Send the single alpha task to the Celery queue.
+    task = simulate_single_alpha_task.delay(single_alpha)
+    print(f"Sent single alpha task with ID: {task.id}")
+    ```
+
+### Monitoring
+
+-   **View Worker Logs:**
+
+    To see the output from the Celery workers in real-time, run:
+
+    ```sh
+    docker-compose logs -f worker
+    ```
+
+-   **RabbitMQ Management UI:**
+
+    You can monitor the message queue and see task activity by opening your web browser to [http://localhost:15672](http://localhost:15672).
+
+    -   **Username:** `guest`
+    -   **Password:** `guest`
+
+
 ## PREREQUISITES
 
 Please first make sure you have a proper [Python](https://www.python.org/) (>=3.11) enviroment ([virtualenv](https://virtualenv.pypa.io/), [conda](https://anaconda.org/), etc.).

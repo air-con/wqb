@@ -1,4 +1,6 @@
 requests
+celery
+pika
 
 coverage
 flake8

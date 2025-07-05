@@ -229,6 +229,8 @@ async def concurrent_await(
     )
 
 
+from .session import ApiClient
+
 class WQBSession(AutoAuthSession):
     """
     A class that implements common APIs of WorldQuant BRAIN platform.
@@ -236,7 +238,6 @@ class WQBSession(AutoAuthSession):
 
     def __init__(
         self,
-        wqb_auth: tuple[str, str] | HTTPBasicAuth,
         *,
         logger: logging.Logger = logging.root,
         **kwargs,
@@ -246,42 +247,19 @@ class WQBSession(AutoAuthSession):
 
         Parameters
         ----------
-        wqb_auth: tuple[str, str] | HTTPBasicAuth
-            The authentication credentials that consist of email and
-            password.
         logger: logging.Logger = logging.root
             The `logging.Logger` object to log requests.
 
         Returns
         -------
         None
-
-        Notes
-        -----
-        No `args` are accepted, while `kwargs` are passed to
-        `AutoAuthSession.__init__`.
-
-        Examples
-        --------
-        Without setting `logger`:
-
-        >>> wqbs = wqb.WQBSession(('<email>', '<password>'))
-
-        With setting `logger` (Recommended):
-
-        >>> logger = wqb.wqb_logger()
-        >>> wqbs = wqb.WQBSession(
-        ...     ('<email>', '<password>'),
-        ...     logger=logger,
-        ... )
         """
-        if not isinstance(wqb_auth, HTTPBasicAuth):
-            wqb_auth = HTTPBasicAuth(*wqb_auth)
-        kwargs['auth'] = wqb_auth
+        # Create the ApiClient that handles the direct login logic
+        api_client = ApiClient()
+
+        # Initialize the AutoAuthSession with the ApiClient
         super().__init__(
-            POST,
-            URL_AUTHENTICATION,
-            auth_expected=lambda resp: 201 == resp.status_code,
+            api_client=api_client,
             expected=lambda resp: resp.status_code not in (204, 401, 429),
             logger=logger,
             **kwargs,

@@ -10,8 +10,8 @@ RUN pip install --no-cache-dir -r requirements-dev.txt
 # Copy the rest of the application code
 COPY . .
 
-# Install the wqb library
-RUN pip install .
+# Install the wqb library in editable mode
+RUN pip install -e .
 
 # Set the default command to keep the container running for interactive use
 CMD ["tail", "-f", "/dev/null"]
