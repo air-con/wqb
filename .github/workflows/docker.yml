@@ -6,7 +6,8 @@ on:
       - master
 
 env:
-  DOCKER_IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: docker.io
+  DOCKER_IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}
 
 jobs:
   build_and_push:
