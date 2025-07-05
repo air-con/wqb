@@ -2,6 +2,7 @@ requests
 celery
 pika
 pymongo
+flower
 
 coverage
 flake8

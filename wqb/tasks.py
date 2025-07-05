@@ -1,6 +1,7 @@
-from celery import Celery
+from celery import Celery, Task
 from . import wqb_session
 from .backend import save_failed_simulation
+import threading
 
 # Create a Celery app instance
 app = Celery('wqb')
@@ -8,8 +9,24 @@ app = Celery('wqb')
 # Load the configuration from the celeryconfig.py file
 app.config_from_object('celeryconfig')
 
+# Create a lock to ensure only one simulation task runs at a time per worker process
+simulation_lock = threading.Lock()
 
-@app.task
+class BaseSimulationTask(Task):
+    abstract = True
+
+    def before_start(self, task_id, args, kwargs):
+        # Acquire the lock before starting the task
+        simulation_lock.acquire()
+        print(f"Task {task_id} acquired lock.")
+
+    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+        # Release the lock after the task returns (success or failure)
+        simulation_lock.release()
+        print(f"Task {task_id} released lock.")
+
+
+@app.task(base=BaseSimulationTask)
 def simulate_alpha_task(alphas):
     """
     A Celery task to run a simulation for a list of alphas sequentially.
@@ -31,7 +48,7 @@ def simulate_alpha_task(alphas):
     return f"Processed {len(alphas)} alphas sequentially."
 
 
-@app.task
+@app.task(base=BaseSimulationTask)
 def simulate_single_alpha_task(alpha):
     """
     A Celery task to run a simulation for a single alpha.

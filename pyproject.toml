@@ -10,7 +10,7 @@ description = 'A better machine lib.'
 license = { file = 'LICENSE' }
 readme = 'README.md'
 requires-python = '>=3.11'
-dependencies = ['requests', 'celery', 'pika', 'pymongo']
+dependencies = ['requests', 'celery', 'pika', 'pymongo', 'flower']
 classifiers = [
     'Intended Audience :: Developers',
     'License :: OSI Approved :: MIT License',

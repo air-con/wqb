@@ -125,6 +125,16 @@ There are two ways to send simulation tasks to the Celery workers: processing a 
     -   **Username:** `guest`
     -   **Password:** `guest`
 
+-   **Celery Flower (Monitoring Dashboard):**
+
+    Flower provides a real-time web-based monitor for your Celery cluster. It shows task progress, worker status, and historical data.
+
+    Access Flower at: [http://localhost:5555](http://localhost:5555)
+
+### Task Concurrency
+
+To prevent overwhelming the external API, a `threading.Lock` is used within each Celery worker process. This ensures that only one `simulate_alpha_task` or `simulate_single_alpha_task` can be actively executing at any given time within a single worker process, even if the worker is configured for higher concurrency. This guarantees sequential execution of simulation requests.
+
 
 ## PREREQUISITES
 
