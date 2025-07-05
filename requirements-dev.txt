@@ -1,6 +1,7 @@
 requests
 celery
 pika
+pymongo
 
 coverage
 flake8

@@ -30,6 +30,7 @@ This project is configured to run as a distributed task queue using Docker, Cele
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/)
+- A running RabbitMQ instance. You are responsible for its setup and maintenance.
 
 ### Setup
 
@@ -41,11 +42,17 @@ This project is configured to run as a distributed task queue using Docker, Cele
     cp .env.example .env
     ```
 
-    Open the `.env` file and replace `your_api_key_here` with your actual WorldQuant BRAIN API key.
+    Open the `.env` file and fill in the following variables:
+    - `API_KEY`: Your actual WorldQuant BRAIN API key.
+    - `CELERY_BROKER_URL`: The full connection URL for your RabbitMQ instance (e.g., `amqp://user:password@host:port/vhost`).
+    - `CELERY_CONCURRENCY`: (Optional) The number of concurrent worker processes. Defaults to `8` if not set.
+    - `MONGO_URI`: (Optional) The connection URI for your MongoDB instance. Defaults to `mongodb://localhost:27017/`.
+    - `MONGO_DATABASE`: (Optional) The name of the database to use for storing failures. Defaults to `wqb_failures`.
+    - `MONGO_COLLECTION`: (Optional) The name of the collection to use. Defaults to `simulations`.
 
 2.  **Build and Start the Services:**
 
-    Run the following command to build the Docker images and start the RabbitMQ broker, Celery workers, and the main application container in the background:
+    Run the following command to build the Docker images and start the Celery workers and the main application container:
 
     ```sh
     docker-compose up -d --build
