@@ -288,6 +288,11 @@ class WQBSession(AutoAuthSession):
         """
         `wqb_auth`
         """
+        if 'auth' not in self.kwargs:
+            # If 'auth' is not explicitly set, return a dummy HTTPBasicAuth object.
+            # This prevents KeyError when ApiClient handles authentication.
+            from requests.auth import HTTPBasicAuth
+            return HTTPBasicAuth('', '')
         return self.kwargs['auth']
 
     @wqb_auth.setter

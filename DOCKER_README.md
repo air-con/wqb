@@ -41,6 +41,8 @@ The project relies on several environment variables for its operation, including
     API_DOMAIN="api.example.com" # e.g., your_api_domain.com
     API_KEY="your_api_key_here"
 
+    
+
     # Celery Worker Concurrency (optional, default is 8)
     CELERY_CONCURRENCY=8
     ```
@@ -164,7 +166,7 @@ Tasks are sent to the Celery broker using the `send_tasks.py` script. This scrip
     python send_tasks.py
     ```
 
-    The script will output messages indicating that tasks are being sent, along with their IDs.
+    The `send_tasks.py` script is designed to send multiple tasks by iterating through a predefined `fields` list. Each iteration sends a `simulate_single_alpha_task` with a different `regular` field.
 
     ```python
     # send_tasks.py (excerpt)
@@ -180,7 +182,8 @@ Tasks are sent to the Celery broker using the `send_tasks.py` script. This scrip
     # The broker URL will be read from the CELERY_BROKER_URL environment variable
     app = Celery('wqb')
 
-    fields = ['assets', 'assets_curr', 'bookvalue_ps', 'capex', 'cash', 'cash_st', 'cashflow', 'cashflow_dividends', 'cashflow_fin', 'cashflow_invst', 'cashflow_op', 'cogs', 'current_ratio', 'debt', 'debt_lt', 'debt_st', 'depre_amort', 'ebit', 'ebitda', 'employee', 'enterprise_value', 'eps', 'equity', 'fnd6_acdo', 'fnd6_acodo', 'fnd6_acox', 'fnd6_acqgdwl', 'fnd6_acqintan', 'fnd6_adesinda_curcd', 'fnd6_aldo', 'fnd6_am', 'fnd6_aodo', 'fnd6_aox', 'fnd6_aqc', 'fnd6_aqi', 'fnd6_aqs', 'fnd6_beta', 'fnd6_capxs', 'fnd6_capxv', 'fnd6_caxts', 'fnd6_ceql', 'fnd6_ch', 'fnd6_ci', 'fnd6_cibegni', 'fnd6_cicurr', 'fnd6_cidergl', 'fnd6_cik', 'fnd6_cimii', 'fnd6_ciother', 'fnd6_cipen', 'fnd6_cisecgl', 'fnd6_citotal', 'fnd6_city', 'fnd6_cld2', 'fnd6_cld3', 'fnd6_cld4', 'fnd6_cld5', 'fnd6_cogss', 'fnd6_cptmfmq_actq', 'fnd6_cptmfmq_atq', 'fnd6_cptmfmq_ceqq', 'fnd6_cptmfmq_dlttq', 'fnd6_cptmfmq_dpq', 'fnd6_cptmfmq_lctq', 'fnd6_cptmfmq_oibdpq', 'fnd6_cptmfmq_opepsq', 'fnd6_cptmfmq_saleq', 'fnd6_cptnewqeventv110_actq', 'fnd6_cptnewqeventv110_apq', 'fnd6_cptnewqeventv110_atq', 'fnd6_cptnewqeventv110_ceqq', 'fnd6_cptnewqeventv110_dlttq', 'fnd6_cptnewqeventv110_dpq', 'fnd6_cptnewqeventv110_epsf12', 'fnd6_cptnewqeventv110_epsfxq', 'fnd6_cptnewqeventv110_epsx12', 'fnd6_cptnewqeventv110_lctq', 'fnd6_cptnewqeventv110_ltq', 'fnd6_cptnewqeventv110_nopiq', 'fnd6_cptnewqeventv110_oeps12', 'fnd6_cptnewqeventv110_oiadpq', 'fnd6_cptnewqeventv110_oibdpq', 'fnd6_cptnewqeventv110_opepsq', 'fnd6_cptnewqv1300_actq', 'fnd6_cptnewqv1300_apq', 'fnd6_cptnewqv1300_atq', 'fnd6_cptnewqv1300_ceqq', 'fnd6_cptnewqv1300_dlttq', 'fnd6_cptnewqv1300_dpq', 'fnd6_cptnewqv1300_epsf12', 'fnd6_cptnewqv1300_epsfxq', 'fnd6_cptnewqv1300_epsx12', 'fnd6_cptnewqv1300_lctq', 'fnd6_cptnewqv1300_ltq', 'fnd6_cptnewqv1300_nopiq', 'fnd6_cptnewqv1300_oeps12', 'fnd6_cptnewqv1300_oiadpq', 'fnd6_cptnewqv1300_oibdpq', 'fnd6_cptnewqv1300_opepsq', 'fnd6_cptnewqv1300_rectq', 'fnd6_cptnewqv1300_req', 'fnd6_cptnewqv1300_saleq', 'fnd6_cptnew... # truncated
+    # This list defines the different 'regular' fields for each task
+    fields = ['assets', 'assets_curr', 'bookvalue_ps', 'capex', 'cash', 'cash_st', 'cashflow', 'cashflow_dividends', 'cashflow_fin', 'cashflow_invst', 'cashflow_op', 'cogs', 'current_ratio', 'debt', 'debt_lt', 'debt_st', 'depre_amort', 'ebit', 'ebitda', 'employee', 'enterprise_value', 'eps', 'equity', 'fnd6_acdo', 'fnd6_acodo', 'fnd6_acox', 'fnd6_acqgdwl', 'fnd6_acqintan', 'fnd6_adesinda_curcd', 'fnd6_aldo', 'fnd6_am', 'fnd6_aodo', 'fnd6_aox', 'fnd6_aqc', 'fnd6_aqi', 'fnd6_aqs', 'fnd6_beta', 'fnd6_capxs', 'fnd6_capxv', 'fnd6_caxts', 'fnd6_ceql', 'fnd6_ch', 'fnd6_ci', 'fnd6_cibegni', 'fnd6_cicurr', 'fnd6_cidergl', 'fnd6_cik', 'fnd6_cimii', 'fnd6_ciother', 'fnd6_cipen', 'fnd6_cisecgl', 'fnd6_citotal', 'fnd6_city', 'fnd6_cld2', 'fnd6_cld3', 'fnd6_cld4', 'fnd6_cld5', 'fnd6_cogss', 'fnd6_cptmfmq_actq', 'fnd6_cptmfmq_atq', 'fnd6_cptmfmq_ceqq', 'fnd6_cptmfmq_dlttq', 'fnd6_cptmfmq_dpq', 'fnd6_cptmfmq_lctq', 'fnd6_cptmfmq_oibdpq', 'fnd6_cptmfmq_opepsq', 'fnd6_cptmfmq_saleq', 'fnd6_cptnewqeventv110_actq', 'fnd6_cptnewqeventv110_apq', 'fnd6_cptnewqeventv110_atq', 'fnd6_cptnewqeventv110_ceqq', 'fnd6_cptnewqeventv110_dlttq', 'fnd6_cptnewqeventv110_dpq', 'fnd6_cptnewqeventv110_epsf12', 'fnd6_cptnewqeventv110_epsfxq', 'fnd6_cptnewqeventv110_epsx12', 'fnd6_cptnewqeventv110_lctq', 'fnd6_cptnewqeventv110_ltq', 'fnd6_cptnewqeventv110_nopiq', 'fnd6_cptnewqeventv110_oeps12', 'fnd6_cptnewqeventv110_oiadpq', 'fnd6_cptnewqeventv110_oibdpq', 'fnd6_cptnewqeventv110_opepsq', 'fnd6_cptnewqv1300_actq', 'fnd6_cptnewqv1300_apq', 'fnd6_cptnewqv1300_atq', 'fnd6_cptnewqv1300_ceqq', 'fnd6_cptnewqv1300_dlttq', 'fnd6_cptnewqv1300_dpq', 'fnd6_cptnewqv1300_epsf12', 'fnd6_cptnewqv1300_epsfxq', 'fnd6_cptnewqv1300_epsx12', 'fnd6_cptnewqv1300_lctq', 'fnd6_cptnewqv1300_ltq', 'fnd6_cptnewqv1300_nopiq', 'fnd6_cptnewqv1300_oeps12', 'fnd6_cptnewqv1300_oiadpq', 'fnd6_cptnewqv1300_oibdpq', 'fnd6_cptnewqv1300_opepsq', 'fnd6_cptnewqv1300_rectq', 'fnd6_cptnewqv1300_req', 'fnd6_cptnewqv1300_saleq', 'fnd6_cptnew... # tr... [truncated]
 
 # --- Send tasks by their string name --- #
 
@@ -211,12 +214,12 @@ for field in fields:
 print("Done sending tasks.")
     ```
 
-### Sending Multiple Tasks (Example)
+### Sending Multiple Tasks (Custom List Example)
 
-To send multiple tasks in a loop, you can adapt the `send_tasks.py` script. Here's an example of how you might send 5 tasks:
+If you want to send a custom list of tasks, you can modify the `send_tasks.py` script or create a new one. Here's an example of how you might send multiple tasks with different alpha data:
 
 ```python
-# send_multiple_tasks.py (example)
+# send_custom_tasks.py (example)
 from celery import Celery
 import os
 
@@ -227,39 +230,131 @@ app = Celery('wqb')
 
 single_alpha_task_name = 'wqb.tasks.simulate_single_alpha_task'
 
-# Example data for a single alpha task
-alpha_data = {
-    'type': 'REGULAR',
-    'settings': {
-        'instrumentType': 'EQUITY',
-        'region': 'USA',
-        'universe': 'TOP3000',
-        'delay': 1,
-        'decay': 13,
-        'neutralization': 'INDUSTRY',
-        'truncation': 0.13,
-        'pasteurization': 'ON',
-        'unitHandling': 'VERIFY',
-        'nanHandling': 'OFF',
-        'language': 'FASTEXPR',
-        'visualization': False
+# Define a list of alpha data for multiple tasks
+custom_alpha_tasks = [
+    {
+        'type': 'REGULAR',
+        'settings': {
+            'instrumentType': 'EQUITY',
+            'region': 'USA',
+            'universe': 'TOP3000',
+            'delay': 1,
+            'decay': 13,
+            'neutralization': 'INDUSTRY',
+            'truncation': 0.13,
+            'pasteurization': 'ON',
+            'unitHandling': 'VERIFY',
+            'nanHandling': 'OFF',
+            'language': 'FASTEXPR',
+            'visualization': False
+        },
+        'regular': 'liabilities/custom_field_1',
     },
-    'regular': 'liabilities/some_field',
-}
+    {
+        'type': 'REGULAR',
+        'settings': {
+            'instrumentType': 'EQUITY',
+            'region': 'USA',
+            'universe': 'TOP3000',
+            'delay': 1,
+            'decay': 13,
+            'neutralization': 'INDUSTRY',
+            'truncation': 0.13,
+            'pasteurization': 'ON',
+            'unitHandling': 'VERIFY',
+            'nanHandling': 'OFF',
+            'language': 'FASTEXPR',
+            'visualization': False
+        },
+        'regular': 'liabilities/custom_field_2',
+    },
+    # Add more alpha tasks as needed
+]
 
-for i in range(5):
-    print(f"Sending task {i+1}...")
+for i, alpha_data in enumerate(custom_alpha_tasks):
+    print(f"Sending custom task {i+1}...")
     task = app.send_task(single_alpha_task_name, args=[alpha_data])
-    print(f"Task {i+1} sent with ID: {task.id}")
+    print(f"Custom task {i+1} sent with ID: {task.id}")
 
-print("Done sending multiple tasks.")
+print("Done sending custom tasks.")
 ```
 
-To run this example, save it as `send_multiple_tasks.py` (or similar) and execute it in your terminal after setting the `CELERY_BROKER_URL`:
+To run this example, save it as `send_custom_tasks.py` (or similar) and execute it in your terminal after setting the `CELERY_BROKER_URL`:
 
 ```bash
 export CELERY_BROKER_URL="amqps://user:password@host:port/vhost"
-python send_multiple_tasks.py
+python send_custom_tasks.py
+```
+
+### Sending a Multi-Alpha Task
+
+If you want to send a single task that processes multiple alphas at once (using `wqb.tasks.simulate_alpha_task`), you can prepare a list of alpha definitions and send them as a single argument.
+
+```python
+# send_multi_alpha_task.py (example)
+from celery import Celery
+import os
+
+app = Celery('wqb')
+
+# Ensure CELERY_BROKER_URL is set in your environment
+# export CELERY_BROKER_URL="amqps://user:password@host:port/vhost"
+
+multi_alpha_task_name = 'wqb.tasks.simulate_alpha_task'
+
+# Define a list of alpha data for a single multi-alpha task
+multi_alpha_data = [
+    {
+        'type': 'REGULAR',
+        'settings': {
+            'instrumentType': 'EQUITY',
+            'region': 'USA',
+            'universe': 'TOP3000',
+            'delay': 1,
+            'decay': 13,
+            'neutralization': 'INDUSTRY',
+            'truncation': 0.13,
+            'pasteurization': 'ON',
+            'unitHandling': 'VERIFY',
+            'nanHandling': 'OFF',
+            'language': 'FASTEXPR',
+            'visualization': False
+        },
+        'regular': 'liabilities/multi_field_1',
+    },
+    {
+        'type': 'REGULAR',
+        'settings': {
+            'instrumentType': 'EQUITY',
+            'region': 'USA',
+            'universe': 'TOP3000',
+            'delay': 1,
+            'decay': 13,
+            'neutralization': 'INDUSTRY',
+            'truncation': 0.13,
+            'pasteurization': 'ON',
+            'unitHandling': 'VERIFY',
+            'nanHandling': 'OFF',
+            'language': 'FASTEXPR',
+            'visualization': False
+        },
+        'regular': 'liabilities/multi_field_2',
+    },
+    # Add more alpha definitions to this list
+]
+
+print(f"Sending multi-alpha task...")
+task = app.send_task(multi_alpha_task_name, args=[multi_alpha_data])
+print(f"Multi-alpha task sent with ID: {task.id}")
+
+print("Done sending multi-alpha task.")
+```
+
+To run this example, save it as `send_multi_alpha_task.py` (or similar) and execute it in your terminal after setting the `CELERY_BROKER_URL`:
+
+```bash
+export CELERY_BROKER_URL="amqps://user:password@host:port/vhost"
+python send_multi_alpha_task.py
 ```
 
 ## Stopping the Services
