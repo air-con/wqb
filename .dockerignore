@@ -6,6 +6,7 @@
 .dockerignore
 Dockerfile
 docker-compose.yml
+docker-compose.prod.yml
 
 # Python
 __pycache__/
@@ -21,3 +22,4 @@ venv/
 .idea/
 .vscode/
 *.swp
+send_tasks.py

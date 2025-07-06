@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  worker:
+    image: usernamepassword/wqb # Replace with your actual Docker Hub image name (e.g., your_dockerhub_username/your_repo_name)
+    command: "celery -A wqb.tasks worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-8}"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  app:
+    image: usernamepassword/wqb # Replace with your actual Docker Hub image name (e.g., your_dockerhub_username/your_repo_name)
+    tty: true
+    stdin_open: true
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  flower:
+    image: mher/flower:0.9.7
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+    depends_on:
+      - worker
+    restart: unless-stopped
