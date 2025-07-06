@@ -1155,7 +1155,7 @@ class WQBSession(AutoAuthSession):
         **kwargs,
     ) -> Coroutine[None, None, Response | None]:
         resp = self.post(
-            wqb_urls.URL_SIMULATIONS,
+            URL_SIMULATIONS,
             json=target,
             expected=self.expected_location,
             max_tries=60,
