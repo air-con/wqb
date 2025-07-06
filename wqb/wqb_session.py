@@ -116,7 +116,7 @@ def wqb_logger(
     )
     logger.addHandler(handler1)
     handler2 = logging.StreamHandler()
-    handler2.setLevel(logging.WARNING)
+    handler2.setLevel(logging.INFO)
     handler2.setFormatter(
         logging.Formatter(fmt='# %(levelname)s %(asctime)s\n%(message)s\n')
     )

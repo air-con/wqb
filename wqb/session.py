@@ -1,8 +1,11 @@
 import os
+import logging
 from time import sleep
 import requests
 
 __all__ = ['ApiClient']
+
+logger = logging.getLogger(__name__)
 
 class ApiClient:
     """
@@ -42,12 +45,12 @@ class ApiClient:
                 response = requests.post(url, headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
-                print(f"Login response: {data}")
+                logger.info(f"Login response: {data}")
                 return data.get('cookie')
             except Exception as e:
-                print(f"Warning: 登录尝试 第 {attempt} 次失败: {e}")
+                logger.warning(f"登录尝试 第 {attempt} 次失败: {e}")
                 sleep(10 * attempt)
-        print("Error: 登录重试 3 次后失败，未获取到 cookie。")
+        logger.error("登录重试 3 次后失败，未获取到 cookie。")
         return None
 
     def login(self, force_update: bool = False) -> requests.Session:

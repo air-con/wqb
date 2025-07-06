@@ -1,7 +1,10 @@
 import os
+import logging
 from pymongo import MongoClient
 
 __all__ = ['save_failed_simulation']
+
+logger = logging.getLogger(__name__)
 
 # Initialize the MongoDB client from environment variables
 client = MongoClient(os.environ.get('MONGO_URI', 'mongodb://localhost:27017/'))
@@ -17,8 +20,8 @@ def save_failed_simulation(alpha_data):
     if isinstance(alpha_data, list):
         # This was a multi_alpha, so insert each one as a separate document
         collection.insert_many(alpha_data)
-        print(f"Saved {len(alpha_data)} failed alphas to MongoDB.")
+        logger.info(f"Saved {len(alpha_data)} failed alphas to MongoDB.")
     else:
         # This was a single alpha
         collection.insert_one(alpha_data)
-        print("Saved 1 failed alpha to MongoDB.")
+        logger.info("Saved 1 failed alpha to MongoDB.")
