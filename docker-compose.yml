@@ -22,13 +22,4 @@ services:
     env_file:
       - .env
 
-  flower:
-    image: mher/flower:0.9.7
-    ports:
-      - "5555:5555"
-    env_file:
-      - .env
-    environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-    depends_on:
-      - worker
+  
