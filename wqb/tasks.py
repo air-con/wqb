@@ -15,6 +15,24 @@ simulation_lock = threading.Lock()
 
 logger = logging.getLogger(__name__)
 
+# 全局变量存储session
+wqb_session_instance = None
+
+@worker_process_init.connect
+def init_worker(**kwargs):
+    """Worker进程初始化时创建WQB会话"""
+    global wqb_session_instance
+    wqb_session_instance = wqb_session.WQBSession()
+    logger.info("Initialized WQBSession for worker process")
+
+def get_wqb_session():
+    """获取WQB会话实例"""
+    global wqb_session_instance
+    if wqb_session_instance is None:
+        wqb_session_instance = wqb_session.WQBSession()
+        logger.info("Created WQBSession instance")
+    return wqb_session_instance
+
 class BaseSimulationTask(Task):
     abstract = True
 
@@ -34,7 +52,7 @@ def simulate_alpha_task(alphas):
     """
     A Celery task to run a simulation for a list of alphas sequentially.
     """
-    wqbs = wqb_session.WQBSession()
+    wqbs = get_wqb_session()
     multi_alphas = wqb_session.to_multi_alphas(alphas, 10)
 
     async def run_simulations_sequentially():
@@ -56,7 +74,7 @@ def simulate_single_alpha_task(alpha):
     """
     A Celery task to run a simulation for a single alpha.
     """
-    wqbs = wqb_session.WQBSession()
+    wqbs = get_wqb_session()
 
     async def run_single_simulation():
         logger.info(f"Simulating single alpha: {alpha}")
