@@ -5,7 +5,7 @@ from requests import Response, Session
 from .session import ApiClient
 
 __all__ = ['AutoAuthSession']
-
+logger = logging.getLogger(__name__)
 
 class AutoAuthSession(Session):
 
@@ -16,7 +16,7 @@ class AutoAuthSession(Session):
         expected: Callable[[Response], bool] = lambda _: True,
         max_tries: int = 3,
         delay_unexpected: float = 2.0,
-        logger: logging.Logger = logging.root,
+        logger: logging.Logger = logger,
         **kwargs,
     ) -> None:
         super().__init__()
