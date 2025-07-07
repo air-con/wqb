@@ -50,6 +50,8 @@ from .wqb_urls import (
     URL_USERS_SELF_ALPHAS,
 )
 
+my_logger = logging.getLogger(__name__)
+
 __all__ = ['print', 'wqb_logger', 'to_multi_alphas', 'concurrent_await', 'WQBSession']
 
 
@@ -239,7 +241,7 @@ class WQBSession(AutoAuthSession):
     def __init__(
         self,
         *,
-        logger: logging.Logger = logging.root,
+        logger: logging.Logger = my_logger,
         **kwargs,
     ) -> None:
         """
