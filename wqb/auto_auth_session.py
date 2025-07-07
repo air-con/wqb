@@ -47,6 +47,8 @@ class AutoAuthSession(Session):
         """
         Logs in using the ApiClient and updates the session headers.
         """
+        if log is not None:
+            self.logger.info(f"start login from auto_auth_session: self.api_client.cookie")
         new_session = self.api_client.login(force_update=False)
         self.headers.update(new_session.headers)
         if log is not None:
