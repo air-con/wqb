@@ -34,7 +34,7 @@ for field in fields:
         'language': 'FASTEXPR',
         'visualization': False
     },
-    'regular': f'/ts_backfill({field}, 120)',
+    'regular': f'fnd6_newqv1300_spiq/ts_backfill({field}, 120)',
 }])
     print(f"Task sent with ID: {task.id}")
 

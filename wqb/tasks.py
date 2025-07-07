@@ -29,7 +29,7 @@ class GlobalWQBSessionManager:
         self._session_lock = threading.Lock()
         self._created_at = None
         self._process_id = None
-        self._session_timeout = 3600  # 1小时后重新创建会话
+        self._session_timeout = 3600 * 4  # 4小时后重新创建会话
     
     def get_session(self):
         current_process_id = os.getpid()
@@ -120,4 +120,5 @@ def simulate_single_alpha_task(alpha):
     import asyncio
     asyncio.run(run_single_simulation())
 
+    logger.info(f"Simulated single alpha: {alpha}")  # Log after the asyn
     return f"Processed single alpha."

@@ -1101,12 +1101,19 @@ class WQBSession(AutoAuthSession):
         resp = None
         key_errors = 0
         value_errors = 0
+        successful_attempt = False # Flag to indicate if a successful response was obtained
+
         if log is not None:
             self.logger.info(f"{self}.retry(...) [start {max_tries}]: {log}")
         if on_start is not None:
             on_start(locals())
+
         for tries, _ in enumerate(max_tries, start=1):
             resp = self.request(method, url, *args, **kwargs)
+            if self.expected(resp): # Check for expected response immediately
+                successful_attempt = True
+                break # Success, exit loop
+            
             try:
                 await asyncio.sleep(float(resp.headers[RETRY_AFTER]))
             except KeyError as e:
@@ -1116,8 +1123,7 @@ class WQBSession(AutoAuthSession):
                         self.logger.info(
                             f"{self}.retry(...) [{key_errors} key_errors]: {log}"
                         )
-                    if on_success is not None:
-                        on_success(locals())
+                    # This is a failure to recover from KeyError, so no on_success here
                     break
                 await asyncio.sleep(delay_key_error)
             except ValueError as e:
@@ -1127,34 +1133,41 @@ class WQBSession(AutoAuthSession):
                         self.logger.info(
                             f"{self}.retry(...) [{value_errors} value_errors]: {log}"
                         )
-                    if on_success is not None:
-                        on_success(locals())
+                    # This is a failure to recover from ValueError, so no on_success here
                     break
                 await asyncio.sleep(delay_value_error)
-        else:
+        
+        # After the loop, determine if it was a success or failure
+        if successful_attempt:
+            if on_success is not None:
+                on_success(locals())
+            if log is not None:
+                self.logger.info(f"{self}.retry(...) [finish {tries} tries - SUCCESS]: {log}")
+        else: # Loop completed without a successful attempt (either max_tries ran out or broke due to error limits)
             self.logger.warning(
                 '\n'.join(
                     (
-                        f"{self}.retry(...) [max {tries} tries ran out]",
+                        f"{self}.retry(...) [max {tries} tries ran out or failed to recover]",
                         f"self.request(method, url, *args, **kwargs):",
                         f"    method: {method}",
                         f"    url: {url}",
                         f"    args: {args}",
                         f"    kwargs: {kwargs}",
-                        f"{resp}:",
-                        f"    status_code: {resp.status_code}",
-                        f"    reason: {resp.reason}",
-                        f"    url: {resp.url}",
-                        f"    elapsed: {resp.elapsed}",
-                        f"    headers: {resp.headers}",
-                        f"    text: {resp.text}",
+                        f"{resp}:", # resp might be None if initial request failed
+                        f"    status_code: {resp.status_code if resp else 'N/A'}",
+                        f"    reason: {resp.reason if resp else 'N/A'}",
+                        f"    url: {resp.url if resp else 'N/A'}",
+                        f"    elapsed: {resp.elapsed if resp else 'N/A'}",
+                        f"    headers: {resp.headers if resp else 'N/A'}",
+                        f"    text: {resp.text if resp else 'N/A'}",
                     )
                 )
             )
             if on_failure is not None:
                 on_failure(locals())
-        if log is not None:
-            self.logger.info(f"{self}.retry(...) [finish {tries} tries]: {log}")
+            if log is not None:
+                self.logger.info(f"{self}.retry(...) [finish {tries} tries - FAILURE]: {log}")
+
         if on_finish is not None:
             on_finish(locals())
         return resp
