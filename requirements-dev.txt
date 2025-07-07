@@ -12,3 +12,4 @@ build
 setuptools
 twine
 wheel
+nest_asyncio
