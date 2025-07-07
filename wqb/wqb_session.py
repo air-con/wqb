@@ -50,8 +50,6 @@ from .wqb_urls import (
     URL_USERS_SELF_ALPHAS,
 )
 
-my_logger = logging.getLogger(__name__)
-
 __all__ = ['print', 'wqb_logger', 'to_multi_alphas', 'concurrent_await', 'WQBSession']
 
 
@@ -241,7 +239,7 @@ class WQBSession(AutoAuthSession):
     def __init__(
         self,
         *,
-        logger: logging.Logger = my_logger,
+        logger: logging.Logger,
         **kwargs,
     ) -> None:
         """
@@ -256,6 +254,16 @@ class WQBSession(AutoAuthSession):
         -------
         None
         """
+        if logger is None:
+            logger = logging.getLogger(__name__)
+            if not logger.handlers:
+                handler = logging.StreamHandler()
+                formatter = logging.Formatter(
+                    '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s'
+                )
+                handler.setFormatter(formatter)
+                logger.addHandler(handler)
+                logger.setLevel(logging.INFO)
         # Create the ApiClient that handles the direct login logic
         api_client = ApiClient()
 
