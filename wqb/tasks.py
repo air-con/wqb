@@ -1,6 +1,7 @@
 from celery import Celery, Task
 from . import wqb_session
 from .backend import save_failed_simulation
+from celery.signals import worker_process_init
 import threading
 import logging
 
