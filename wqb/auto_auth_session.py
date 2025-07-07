@@ -81,6 +81,7 @@ class AutoAuthSession(Session):
             resp = super().request(method, url, *args, **kwargs)
             if expected(resp):
                 break
+            self.logger.warning(f"{self}.request(...) [{tries} tries]: {resp.status_code} {resp.reason} {resp.text} {resp.elapsed} {resp.headers}")
             time.sleep(delay_unexpected)
             self.auth_request() # Call the new auth_request
         else:
