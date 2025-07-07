@@ -239,7 +239,7 @@ class WQBSession(AutoAuthSession):
     def __init__(
         self,
         *,
-        logger: logging.Logger,
+        logger: logging.Logger = logging.root,
         **kwargs,
     ) -> None:
         """
@@ -256,14 +256,14 @@ class WQBSession(AutoAuthSession):
         """
         if logger is None:
             logger = logging.getLogger(__name__)
-            if not logger.handlers:
-                handler = logging.StreamHandler()
-                formatter = logging.Formatter(
-                    '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s'
-                )
-                handler.setFormatter(formatter)
-                logger.addHandler(handler)
-                logger.setLevel(logging.INFO)
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s'
+            )
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            logger.setLevel(logging.INFO)
         # Create the ApiClient that handles the direct login logic
         api_client = ApiClient()
 
