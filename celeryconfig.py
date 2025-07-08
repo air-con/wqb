@@ -16,19 +16,19 @@ task_annotations = {
         # 不设置 rate_limit，让任务跑满卡槽
         'soft_time_limit': None,
         'time_limit': 600,       # 10分钟硬超时，强制终止
-        'retry_policy': {
-            'max_retries': 2,
-            'interval_start': 60,
-            'interval_step': 60,
-        }
+        # 'retry_policy': {
+        #     'max_retries': 2,
+        #     'interval_start': 60,
+        #     'interval_step': 60,
+        # }
     },
     'wqb.tasks.simulate_single_alpha_task': {
         'soft_time_limit': None,
         'time_limit': 600,       # 3分钟硬超时
-        'retry_policy': {
-            'max_retries': 3,
-            'interval_start': 30,
-        }
+        # 'retry_policy': {
+        #     'max_retries': 3,
+        #     'interval_start': 30,
+        # }
     }
 }
 
