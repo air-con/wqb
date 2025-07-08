@@ -69,56 +69,71 @@ def get_wqb_session():
     return session_manager.get_session()
 
 class BaseSimulationTask(Task):
+    """
+    任务基类，确保在任务开始前获取锁，在任务结束后（无论成功、失败或重试）释放锁。
+    """
     abstract = True
 
-    def before_start(self, task_id, args, kwargs):
-        # Acquire the lock before starting the task
+    def __call__(self, *args, **kwargs):
         simulation_lock.acquire()
-        logger.info(f"Task {task_id} acquired lock.")
-
-    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        # Release the lock after the task returns (success or failure)
-        simulation_lock.release()
-        logger.info(f"Task {task_id} released lock.")
+        logger.info(f"Task {self.request.id} acquired lock.")
+        try:
+            # bind=True makes self the task instance
+            return super().__call__(*args, **kwargs)
+        finally:
+            simulation_lock.release()
+            logger.info(f"Task {self.request.id} released lock.")
 
 # 保持原始的任务定义，只替换会话管理
-@app.task(base=BaseSimulationTask)
-def simulate_alpha_task(alphas):
+@app.task(base=BaseSimulationTask, bind=True)
+def simulate_alpha_task(self, alphas):
     """
     A Celery task to run a simulation for a list of alphas sequentially.
     """
-    wqbs = get_wqb_session()  # 使用改进的会话管理
-    multi_alphas = wqb_session.to_multi_alphas(alphas, 10)
+    try:
+        logger.info(f"Task {self.request.id} starting, getting WQB session.")
+        wqbs = get_wqb_session()  # 使用改进的会话管理
+        logger.info(f"Task {self.request.id} got WQB session successfully.")
+        multi_alphas = wqb_session.to_multi_alphas(alphas, 10)
 
-    async def run_simulations_sequentially():
-        for multi_alpha in multi_alphas:
-            logger.info(f"Simulating multi_alpha: {multi_alpha}")
-            response = await wqbs.simulate(multi_alpha)
-            if response is None or not response.ok:
-                logger.warning(f"Failed to simulate multi_alpha: {multi_alpha}")
-                save_failed_simulation(multi_alpha)
+        async def run_simulations_sequentially():
+            for multi_alpha in multi_alphas:
+                logger.info(f"Simulating multi_alpha for task {self.request.id}: {multi_alpha}")
+                response = await wqbs.simulate(multi_alpha)
+                if response is None or not response.ok:
+                    logger.warning(f"Failed to simulate multi_alpha for task {self.request.id}: {multi_alpha}")
+                    save_failed_simulation(multi_alpha)
 
-    import asyncio
-    asyncio.run(run_simulations_sequentially())
+        import asyncio
+        asyncio.run(run_simulations_sequentially())
 
-    return f"Processed {len(alphas)} alphas sequentially."
+        return f"Processed {len(alphas)} alphas sequentially."
+    except Exception as e:
+        logger.error(f"Task {self.request.id} failed: {e}", exc_info=True)
+        raise  # Re-throw exception to allow Celery to handle retries
 
-@app.task(base=BaseSimulationTask)
-def simulate_single_alpha_task(alpha):
+@app.task(base=BaseSimulationTask, bind=True)
+def simulate_single_alpha_task(self, alpha):
     """
     A Celery task to run a simulation for a single alpha.
     """
-    wqbs = get_wqb_session()  # 使用改进的会话管理
+    try:
+        logger.info(f"Task {self.request.id} starting, getting WQB session.")
+        wqbs = get_wqb_session()  # 使用改进的会话管理
+        logger.info(f"Task {self.request.id} got WQB session successfully.")
 
-    async def run_single_simulation():
-        logger.info(f"Simulating single alpha: {alpha}")
-        response = await wqbs.simulate(alpha)
-        if response is None or not response.ok:
-            logger.warning(f"Failed to simulate single alpha: {alpha}")
-            save_failed_simulation(alpha)
+        async def run_single_simulation():
+            logger.info(f"Simulating single alpha for task {self.request.id}: {alpha}")
+            response = await wqbs.simulate(alpha)
+            if response is None or not response.ok:
+                logger.warning(f"Failed to simulate single alpha for task {self.request.id}: {alpha}")
+                save_failed_simulation(alpha)
 
-    import asyncio
-    asyncio.run(run_single_simulation())
+        import asyncio
+        asyncio.run(run_single_simulation())
 
-    logger.info(f"Simulated single alpha: {alpha}")  # Log after the asyn
-    return f"Processed single alpha."
+        logger.info(f"Simulated single alpha success: {alpha}")
+        return f"Processed single alpha."
+    except Exception as e:
+        logger.error(f"Task {self.request.id} failed: {e}", exc_info=True)
+        raise  # Re-throw exception to allow Celery to handle retries
