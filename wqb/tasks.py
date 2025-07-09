@@ -128,6 +128,12 @@ def simulate_single_alpha_task(self, alpha):
             if response is None or not response.ok:
                 logger.warning(f"Failed to simulate single alpha for task {self.request.id}: {alpha}")
                 save_failed_simulation(alpha)
+            else:
+                try:
+                    json_data = response.json()
+                    logger.info(f"Response JSON: {json_data}")
+                except Exception as e:
+                    logger.info(f"Response text: {response.text}")
             return response
 
         import asyncio
