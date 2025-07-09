@@ -82,46 +82,7 @@ def print(
     _print(*args, **kwargs)
 
 
-def wqb_logger(
-    *,
-    name: str | None = None,
-) -> logging.Logger:
-    """
-    Returns a pre-configured `logging.Logger` object.
 
-    INFO logs are written to both the .log file and the console.
-
-    WARNING logs are written to the console only.
-
-    Parameters
-    ----------
-    name: str | None = None
-        `logging.Logger.name`. If *None*, it is set to 'wqb' followed by
-        the current datetime. The filename of the .log file is set to
-        `name` followed by '.log'.
-
-    Returns
-    -------
-    logging.Logger
-        A pre-configured `logging.Logger` object.
-    """
-    if name is None:
-        name = 'wqb' + datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    logger = logging.getLogger(name=name)
-    logger.setLevel(logging.INFO)
-    handler1 = logging.FileHandler(f"{logger.name}.log")
-    handler1.setLevel(logging.INFO)
-    handler1.setFormatter(
-        logging.Formatter(fmt='# %(levelname)s %(asctime)s\n%(message)s\n')
-    )
-    logger.addHandler(handler1)
-    handler2 = logging.StreamHandler()
-    handler2.setLevel(logging.INFO)
-    handler2.setFormatter(
-        logging.Formatter(fmt='# %(levelname)s %(asctime)s\n%(message)s\n')
-    )
-    logger.addHandler(handler2)
-    return logger
 
 
 def to_multi_alphas(
@@ -239,7 +200,7 @@ class WQBSession(AutoAuthSession):
     def __init__(
         self,
         *,
-        logger: logging.Logger = logging.root,
+        logger: logging.Logger | None = None,
         **kwargs,
     ) -> None:
         """
@@ -247,8 +208,9 @@ class WQBSession(AutoAuthSession):
 
         Parameters
         ----------
-        logger: logging.Logger = logging.root
-            The `logging.Logger` object to log requests.
+        logger: logging.Logger | None = None
+            The `logging.Logger` object to log requests. If None, a new
+            logger is created.
 
         Returns
         -------
@@ -256,14 +218,7 @@ class WQBSession(AutoAuthSession):
         """
         if logger is None:
             logger = logging.getLogger(__name__)
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s'
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
+
         # Create the ApiClient that handles the direct login logic
         api_client = ApiClient()
 
