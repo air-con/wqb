@@ -128,9 +128,10 @@ def simulate_single_alpha_task(self, alpha):
             if response is None or not response.ok:
                 logger.warning(f"Failed to simulate single alpha for task {self.request.id}: {alpha}")
                 save_failed_simulation(alpha)
+            return response
 
         import asyncio
-        asyncio.run(run_single_simulation())
+        response = asyncio.run(run_single_simulation())
 
         logger.info(f"Simulated single alpha success: {response}")
         return f"Processed single alpha."
