@@ -122,22 +122,27 @@ def simulate_single_alpha_task(self, alpha):
         wqbs = get_wqb_session()  # 使用改进的会话管理
         logger.info(f"Task {self.request.id} got WQB session successfully.")
 
-        async def run_single_simulation():
-            logger.info(f"Simulating single alpha for task {self.request.id}: {alpha}")
-            response = await wqbs.simulate(alpha)
-            if response is None or not response.ok:
-                logger.warning(f"Failed to simulate single alpha for task {self.request.id}: {alpha}")
-                save_failed_simulation(alpha)
-            else:
-                try:
-                    json_data = response.json()
-                    logger.info(f"Response JSON: {json_data}")
-                except Exception as e:
-                    logger.info(f"Response text: {response.text}")
-            return response
-
         import asyncio
-        response = asyncio.run(run_single_simulation())
+        # 
+        response = asyncio.run(
+            wqbs.simulate(
+                alpha,  # `alpha` or `multi_alpha`
+                # on_nolocation=lambda vars: print(vars['target'], vars['resp'], sep='\n'),
+                # on_start=lambda vars: print(vars['url']),
+                # on_finish=lambda vars: print(vars['resp']),
+                # on_success=lambda vars: print(vars['resp']),
+                # on_failure=lambda vars: print(vars['resp']),
+            )
+        )
+        if response is None or not response.ok:
+            logger.warning(f"Failed to simulate single alpha for task {self.request.id}: {alpha}")
+            save_failed_simulation(alpha)
+        else:
+            try:
+                json_data = response.json()
+                logger.info(f"Response JSON: {json_data}")
+            except Exception as e:
+                logger.info(f"Response text: {response.text}")
 
         logger.info(f"Simulated single alpha success: {response}")
         return f"Processed single alpha."
