@@ -128,7 +128,7 @@ def simulate_single_alpha_task(self, alpha):
             wqbs.simulate(
                 alpha,  # `alpha` or `multi_alpha`
                 max_tries = range(600),
-                log = self.request.id,
+                log = str(self.request.id),
                 # on_nolocation=lambda vars: print(vars['target'], vars['resp'], sep='\n'),
                 # on_start=lambda vars: print(vars['url']),
                 # on_finish=lambda vars: print(vars['resp']),
