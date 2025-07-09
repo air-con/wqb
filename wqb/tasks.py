@@ -1,6 +1,5 @@
 from celery import Celery, Task
 from . import wqb_session
-from .backend import save_failed_simulation
 from celery.signals import worker_process_init
 from celery.utils.log import get_task_logger
 import threading
@@ -28,6 +27,44 @@ def _log_response(logger, response):
         logger.debug(f"Response JSON: {response.json()}")
     except Exception:
         logger.debug(f"Response text: {response.text}")
+
+def _format_sim_result(logger, input_data, response):
+    """
+    Formats the simulation result for the backend based on the response.
+    """
+    if response is None or not response.ok:
+        logger.warning(f"Invalid response for input: {str(input_data)[:200]}...")
+        return {
+            'success': False,
+            'error': 'Invalid response from simulation server',
+            'input': input_data,
+            'response_text': response.text if response else 'No response'
+        }
+
+    _log_response(logger, response)
+
+    try:
+        response_json = response.json()
+        status = response_json.get('status', 'UNKNOWN').upper()
+
+        if status in ('COMPLETE', 'WARNING'):
+            return {'success': True, 'input': input_data, 'result': response_json}
+        else:
+            logger.warning(f"Simulation finished with non-success status: {status}")
+            return {
+                'success': False,
+                'error': f'Simulation failed with status: {status}',
+                'input': input_data,
+                'response_json': response_json
+            }
+    except ValueError:  # JSONDecodeError
+        logger.error("Failed to decode JSON response.", exc_info=True)
+        return {
+            'success': False,
+            'error': 'Failed to decode JSON response',
+            'input': input_data,
+            'response_text': response.text
+        }
 
 # 改进的全局会话管理
 class GlobalWQBSessionManager:
@@ -97,98 +134,70 @@ class BaseSimulationTask(Task):
             simulation_lock.release()
             self.logger.debug(f"Released lock.")
 
-# 保持原始的任务定义，只替换会话管理
 @app.task(base=BaseSimulationTask, bind=True)
-def simulate_alpha_task(self, alphas):
+def simulate_task(self, alpha_or_multi_alpha):
     """
-    A Celery task to run a simulation for a list of alphas sequentially.
+    A Celery task to run a single simulation for an alpha or a multi_alpha.
     """
     try:
-        self.logger.info(f"Starting sequential simulation for {len(alphas)} alphas.")
+        self.logger.info(f"Starting single simulation.")
         wqbs = get_wqb_session(self.logger)
-        multi_alphas = wqb_session.to_multi_alphas(alphas, 10)
-
-        async def run_simulations_sequentially():
-            for i, multi_alpha in enumerate(multi_alphas):
-                self.logger.debug(f"Simulating multi_alpha batch {i+1}: {str(multi_alpha)[:200]}...")
-                response = await wqbs.simulate(multi_alpha)
-                if response is None or not response.ok:
-                    self.logger.warning(f"Failed to simulate multi_alpha: {multi_alpha}")
-                    save_failed_simulation(multi_alpha)
-
-        import asyncio
-        asyncio.run(run_simulations_sequentially())
-
-        self.logger.info(f"Finished sequential simulation for {len(alphas)} alphas.")
-        return f"Processed {len(alphas)} alphas sequentially."
-    except Exception as e:
-        self.logger.error(f"Task failed: {e}", exc_info=True)
-        raise  # Re-throw exception to allow Celery to handle retries
-
-@app.task(base=BaseSimulationTask, bind=True)
-def simulate_single_alpha_task(self, alpha):
-    """
-    A Celery task to run a simulation for a single alpha.
-    Formats the result for the backend based on simulation status.
-    """
-    try:
-        self.logger.info(f"Starting simulation for alpha.")
-        wqbs = get_wqb_session(self.logger)
-        self.logger.debug(f"Got WQB session successfully.")
-
+        
         import asyncio
         response = asyncio.run(
             wqbs.simulate(
-                alpha,  # `alpha` or `multi_alpha`
+                alpha_or_multi_alpha,
                 max_tries=range(600),
                 log=str(self.request.id),
             )
         )
 
-        # --- Format result for backend ---
-        if response is None or not response.ok:
-            self.logger.warning(f"Invalid response for alpha: {alpha}")
-            save_failed_simulation(alpha)
-            result = {
-                'success': False,
-                'error': 'Invalid response from simulation server',
-                'input_alpha': alpha,
-                'response_text': response.text if response else 'No response'
-            }
-            self.logger.info(f"Finished simulation for alpha with error.")
-            return result
-
-        _log_response(self.logger, response)
-
-        try:
-            response_json = response.json()
-            # Normalize status to uppercase for consistent checking
-            status = response_json.get('status', 'UNKNOWN').upper()
-
-            if status in ('COMPLETE', 'WARNING'):
-                self.logger.info(f"Simulation successful with status: {status}")
-                result = {'success': True}
-            else:
-                self.logger.warning(f"Simulation finished with non-success status: {status}")
-                result = {
-                    'success': False,
-                    'error': f'Simulation failed with status: {status}',
-                    'input_alpha': alpha,
-                    'response_json': response_json
-                }
-        except ValueError:  # Catches JSONDecodeError
-            self.logger.error("Failed to decode JSON response.", exc_info=True)
-            result = {
-                'success': False,
-                'error': 'Failed to decode JSON response',
-                'input_alpha': alpha,
-                'response_text': response.text
-            }
-
-        self.logger.info(f"Finished simulation for alpha. Success: {result.get('success')}")
+        result = _format_sim_result(self.logger, alpha_or_multi_alpha, response)
+        
+        self.logger.info(f"Finished single simulation. Success: {result.get('success')}")
         return result
 
     except Exception as e:
         self.logger.error(f"Task failed unexpectedly: {e}", exc_info=True)
-        raise  # Re-throw exception to allow Celery to handle retries
+        raise
+
+@app.task(base=BaseSimulationTask, bind=True)
+def simulate_tasks(self, sim_targets):
+    """
+    A Celery task to run multiple simulations concurrently.
+    Accepts a list of alphas or multi_alphas.
+    """
+    try:
+        self.logger.info(f"Starting concurrent simulation for {len(sim_targets)} targets.")
+        wqbs = get_wqb_session(self.logger)
+
+        import asyncio
+        # Concurrency limit can be configured as needed
+        responses = asyncio.run(
+            wqbs.concurrent_simulate(
+                sim_targets,
+                concurrency=1,
+                return_exceptions=True # Important to handle individual failures
+            )
+        )
+
+        results = []
+        for target, response in zip(sim_targets, responses):
+            if isinstance(response, Exception):
+                 self.logger.error(f"Concurrent simulation for target {str(target)[:200]}... failed with exception.", exc_info=response)
+                 results.append({
+                    'success': False,
+                    'error': 'Exception during simulation',
+                    'input': target,
+                    'exception': str(response)
+                 })
+                 continue
+            results.append(_format_sim_result(self.logger, target, response))
+
+        self.logger.info(f"Finished concurrent simulation for {len(sim_targets)} targets.")
+        return results
+
+    except Exception as e:
+        self.logger.error(f"Task failed unexpectedly: {e}", exc_info=True)
+        raise
 
