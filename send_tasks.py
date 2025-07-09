@@ -15,7 +15,7 @@ fields = ['assets', 'assets_curr', 'bookvalue_ps', 'capex', 'cash', 'cash_st', '
 # --- Send tasks by their string name --- #
 
 # Task name for single alpha simulation (defined in wqb/tasks.py)
-single_alpha_task_name = 'wqb.tasks.simulate_single_alpha_task'
+single_alpha_task_name = 'wqb.tasks.simulate_task'
 for field in fields:
     print(f"Sending {single_alpha_task_name}...")
     task = app.send_task(single_alpha_task_name, args=[{

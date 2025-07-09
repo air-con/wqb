@@ -187,29 +187,13 @@ python -m pip install wqb --upgrade --extra-index-url https://pypi.org/simple
     - A sub-log will be logged `if 0 != log_gap and 0 == idx % log_gap` where `idx` starts from `1`.
     - `0` disables sub-log.
 
-### Create a `logging.Logger` object *(Optional but Recommended)*
-
-```python
-import wqb
-
-# Create `logger`
-logger = wqb.wqb_logger()
-wqb.print(f"{logger.name = }")  # print(f"{logger.name = }", flush=True)
-
-# Manual logging
-# logger.info('This is an info for testing.')
-# logger.warning('This is a warning for testing.')
-```
-
 ### Create a `wqb.WQBSession` object
 
 ```python
 from wqb import WQBSession, print
 
 # Create `wqbs`
-wqbs = WQBSession(('<email>', '<password>'), logger=logger)
-# If `logger` was not created, use the following line instead.
-# wqbs = WQBSession(('<email>', '<password>'))
+wqbs = WQBSession(('<email>', '<password>'))
 
 # Test connectivity (Optional)
 resp = wqbs.auth_request()

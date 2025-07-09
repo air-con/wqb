@@ -50,7 +50,7 @@ from .wqb_urls import (
     URL_USERS_SELF_ALPHAS,
 )
 
-__all__ = ['print', 'wqb_logger', 'to_multi_alphas', 'concurrent_await', 'WQBSession']
+__all__ = ['print', 'to_multi_alphas', 'concurrent_await', 'WQBSession']
 
 
 _print = print
