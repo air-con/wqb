@@ -132,7 +132,7 @@ def simulate_single_alpha_task(self, alpha):
         import asyncio
         asyncio.run(run_single_simulation())
 
-        logger.info(f"Simulated single alpha success: {alpha}")
+        logger.info(f"Simulated single alpha success: {response}")
         return f"Processed single alpha."
     except Exception as e:
         logger.error(f"Task {self.request.id} failed: {e}", exc_info=True)
