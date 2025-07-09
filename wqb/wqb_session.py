@@ -1083,6 +1083,7 @@ class WQBSession(AutoAuthSession):
         method: str,
         url: str,
         *args,
+        expected: Callable[[Response], bool] | None = None,
         max_tries: int | Iterable[Any] = itertools.repeat(None),
         max_key_errors: int = 1,
         max_value_errors: int = 1,
@@ -1095,6 +1096,8 @@ class WQBSession(AutoAuthSession):
         log: str | None = '',
         **kwargs,
     ) -> Coroutine[None, None, Response | None]:
+        if expected is None:
+            expected = self.expected
         if isinstance(max_tries, int):
             max_tries = range(max_tries)
         tries = 0
@@ -1110,7 +1113,7 @@ class WQBSession(AutoAuthSession):
 
         for tries, _ in enumerate(max_tries, start=1):
             resp = self.request(method, url, *args, **kwargs)
-            if self.expected(resp): # Check for expected response immediately
+            if expected(resp): # Check for expected response immediately
                 successful_attempt = True
                 break # Success, exit loop
             
@@ -1212,8 +1215,27 @@ class WQBSession(AutoAuthSession):
             if on_nolocation is not None:
                 on_nolocation(locals())
             return None
+
+        def is_simulation_complete(resp: Response) -> bool:
+            if not resp.ok:
+                return False  # Continue retrying on server errors
+            try:
+                data = resp.json()
+                # Stop retrying if the simulation is in a terminal state
+                status = data.get('status', '').lower()
+                if status in ('finished', 'failed', 'error', 'completed'):
+                    return True
+                # Also handle progress, if available
+                if 'progress' in data and data['progress'] >= 1:
+                    return True
+                # Otherwise, continue polling
+                return False
+            except ValueError:
+                # Not a JSON response, probably an error page. Stop.
+                return True
+
         resp = await self.retry(
-            GET, url, *args, max_tries=max_tries, log=retry_log, **kwargs
+            GET, url, *args, max_tries=max_tries, log=retry_log, expected=is_simulation_complete, **kwargs
         )
         if log is not None:
             self.logger.info(
