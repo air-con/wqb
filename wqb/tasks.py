@@ -127,6 +127,7 @@ def simulate_single_alpha_task(self, alpha):
         response = asyncio.run(
             wqbs.simulate(
                 alpha,  # `alpha` or `multi_alpha`
+                max_tries = range(600),
                 # on_nolocation=lambda vars: print(vars['target'], vars['resp'], sep='\n'),
                 # on_start=lambda vars: print(vars['url']),
                 # on_finish=lambda vars: print(vars['resp']),
