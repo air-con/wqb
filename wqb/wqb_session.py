@@ -1223,7 +1223,7 @@ class WQBSession(AutoAuthSession):
                 data = resp.json()
                 # Stop retrying if the simulation is in a terminal state
                 status = data.get('status', '').lower()
-                if status in ('finished', 'failed', 'error', 'completed'):
+                if status in ('finished', 'failed', 'error', 'complete', 'warning'):
                     return True
                 # Also handle progress, if available
                 if 'progress' in data and data['progress'] >= 1:
