@@ -26,6 +26,7 @@ class AutoAuthSession(Session):
         self.delay_unexpected = max(0.0, delay_unexpected)
         self.logger = logger
         self.kwargs = kwargs
+        self.auth_inited = False
 
     def __repr__(
         self,
@@ -77,6 +78,9 @@ class AutoAuthSession(Session):
             delay_unexpected = self.delay_unexpected
         max_tries = max(1, max_tries)
         delay_unexpected = max(0.0, delay_unexpected)
+        if not self.auth_inited:
+            self.auth_inited = True
+            self.auth_request()
         for tries in range(1, 1 + max_tries):
             resp = super().request(method, url, *args, **kwargs)
             if expected(resp):
