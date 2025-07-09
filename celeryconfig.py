@@ -2,7 +2,7 @@ import os
 
 # 基础配置
 broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@localhost:5672//')
-result_backend = os.environ.get('CELERY_BACKEND_URL', ''rpc://'')
+result_backend = os.environ.get('CELERY_BACKEND_URL', 'rpc://')
 task_imports = ('wqb.tasks',)
 
 # 任务安全配置
