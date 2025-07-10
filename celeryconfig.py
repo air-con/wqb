@@ -12,7 +12,7 @@ task_reject_on_worker_lost = True
 
 # 超时配置
 task_annotations = {
-    'wqb.tasks.simulate_alpha_task': {
+    'wqb.tasks.simulate_task': {
         # 不设置 rate_limit，让任务跑满卡槽
         'soft_time_limit': None,
         'time_limit': 1200,       # 20分钟硬超时，强制终止
@@ -22,7 +22,7 @@ task_annotations = {
         #     'interval_step': 60,
         # }
     },
-    'wqb.tasks.simulate_single_alpha_task': {
+    'wqb.tasks.simulate_tasks': {
         'soft_time_limit': None,
         'time_limit': 1200,       # 20分钟硬超时
         # 'retry_policy': {

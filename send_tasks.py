@@ -34,7 +34,7 @@ for field in fields:
         'language': 'FASTEXPR',
         'visualization': False
     },
-    'regular': f'fnd6_mkvalt/ts_backfill({field}, 120)',
+    'regular': f'log(close)/{field}',
 }])
     print(f"Task sent with ID: {task.id}")
 
