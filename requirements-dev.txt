@@ -7,6 +7,7 @@ flower
 coverage
 flake8
 mypy
+lark_oapi
 
 build
 setuptools

@@ -137,5 +137,5 @@ class LarkBackend(BaseBackend):
         return record.fields.get("result") if record and hasattr(record, 'fields') else None
 
     def get_traceback(self, task_id):
-        record = self._get_record_by_task_id(_id)
+        record = self._get_record_by_task_id(task_id)
         return record.fields.get("traceback") if record and hasattr(record, 'fields') else None
