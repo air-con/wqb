@@ -50,36 +50,7 @@ from .wqb_urls import (
     URL_USERS_SELF_ALPHAS,
 )
 
-__all__ = ['print', 'to_multi_alphas', 'concurrent_await', 'WQBSession']
-
-
-_print = print
-
-
-def print(
-    *args,
-    **kwargs,
-) -> None:
-    """
-    Prints, and then flushes instantly.
-
-    The usage is the same as the built-in `print`.
-
-    Parameters
-    ----------
-    See also the built-in `print`.
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    `args` and `kwargs` are passed to the built-in `print`. `flush` is
-    overridden to True no matter what.
-    """
-    kwargs['flush'] = True
-    _print(*args, **kwargs)
+__all__ = ['to_multi_alphas', 'concurrent_await', 'WQBSession']
 
 
 

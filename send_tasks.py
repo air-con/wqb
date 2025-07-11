@@ -34,7 +34,7 @@ for field in fields:
         'language': 'FASTEXPR',
         'visualization': False
     },
-    'regular': f'log(close)/{field}',
+    'regular': f'open / {field}',
 }])
     print(f"Task sent with ID: {task.id}")
 

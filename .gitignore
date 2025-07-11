@@ -20,3 +20,9 @@ tmp*
 *.temp
 *.tmp
 .env
+
+# Ignore all log files
+*.log
+
+# But do not ignore the logging configuration file
+!wqb/logging_config.py

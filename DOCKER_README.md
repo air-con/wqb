@@ -5,375 +5,175 @@ This guide provides instructions on how to deploy the WQB project using Docker a
 ## Table of Contents
 - [Prerequisites](#prerequisites)
 - [Configuration](#configuration)
+- [Logging](#logging)
 - [Deployment Steps](#deployment-steps)
-  - [1. Build and Run (Local Development)](#1-build-and-run-local-development)
-  - [2. Run from Docker Hub (Production/Deployment)](#2-run-from-docker-hub-productiondeployment)
 - [Verifying the Deployment](#verifying-the-deployment)
 - [Sending Tasks](#sending-tasks)
 - [Stopping the Services](#stopping-the-services)
-- [Cloud Deployment Notes](#cloud-deployment-notes)
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed on your system:
-
-*   **Docker Engine:** [Install Docker](https://docs.docker.com/engine/install/)
-*   **Docker Compose:** [Install Docker Compose](https://docs.docker.com/compose/install/) (Docker Desktop for Windows/macOS includes Docker Compose)
+- **Docker Engine:** [Install Docker](https://docs.docker.com/engine/install/)
+- **Docker Compose:** [Install Docker Compose](https://docs.docker.com/compose/install/)
 
 ## Configuration
 
-The project relies on several environment variables for its operation, including connection details for RabbitMQ (Celery broker), MongoDB, and an external API. These variables should be configured in a `.env` file.
+The project uses a `.env` file to manage environment variables.
 
 1.  **Create a `.env` file:**
-    In the root directory of your project (where `docker-compose.yml` is located), create a new file named `.env`.
+    Copy the example file to create your own configuration:
+    ```bash
+    cp .env.example .env
+    ```
 
-2.  **Add environment variables:**
-    Populate the `.env` file with the following variables, replacing the placeholder values with your actual credentials and URLs:
+2.  **Edit the `.env` file:**
+    Update the variables with your actual credentials and settings:
 
     ```dotenv
-    # Celery Broker URL (e.g., RabbitMQ, Redis)
-    CELERY_BROKER_URL="amqps://user:password@host:port/vhost"
+    # Domain for the WorldQuant BRAIN API
+    API_DOMAIN=api.worldquantbrain.com
 
-    # MongoDB Connection URI
-    MONGO_URI="mongodb://user:password@host:port/database?authSource=admin"
+    # Your personal WorldQuant BRAIN API key
+    API_KEY=your_api_key_here
 
-    # External API Configuration
-    API_DOMAIN="api.example.com" # e.g., your_api_domain.com
-    API_KEY="your_api_key_here"
+    # Connection URL for the Celery message broker (e.g., RabbitMQ)
+    CELERY_BROKER_URL=amqp://guest:guest@localhost:5672//
 
-    
-
-    # Celery Worker Concurrency (optional, default is 8)
+    # (Optional) Number of concurrent Celery worker processes
     CELERY_CONCURRENCY=8
+
+    # (Optional) Lark Bitable configuration for the result backend
+    LARK_APP_ID=your_lark_app_id
+    LARK_APP_SECRET=your_lark_app_secret
+    LARK_APP_TOKEN=your_lark_app_token
+    LARK_TABLE_ID=your_lark_table_id
     ```
-    **Important:** Ensure your `CELERY_BROKER_URL` and `MONGO_URI` are correctly formatted and accessible from your Docker containers.
+
+## Logging
+
+This project uses a centralized logging system configured in `wqb/logging_config.py`.
+- **Log Rotation:** Logs are automatically rotated daily, and the last 3 days of logs are kept.
+- **Log Files:** All logs are stored in the `logs/` directory at the project root.
+- **Console Output:** Logs are also streamed to the console (stdout) for real-time monitoring.
+
+When running with Docker, you can view the consolidated logs from all services using:
+```bash
+docker-compose logs -f
+```
 
 ## Deployment Steps
 
-There are two main ways to run the project with Docker Compose: building images locally (for development) or pulling pre-built images from Docker Hub (for production/deployment).
+You can either build the Docker images from your local source code or pull pre-built images from a container registry.
 
-### 1. Build and Run (Local Development)
+### 1. Build and Run Locally (for Development)
 
-This method builds the Docker images from your local codebase. Use this if you are developing the project and need to test local changes.
+This is ideal for testing local changes.
 
-1.  **Ensure your `docker-compose.yml` uses `build` directives:**
-    (This is the default setup if you haven't changed it to `image` directives yet.)
+```bash
+docker-compose up --build -d
+```
+- `--build`: Rebuilds the Docker images before starting.
+- `-d`: Runs containers in the background.
 
-    ```yaml
-    # docker-compose.yml (example snippet)
-    services:
-      worker:
-        build:
-          context: .
-          dockerfile: Dockerfile
-        # ... other configurations
-      app:
-        build:
-          context: .
-          dockerfile: Dockerfile
-        # ... other configurations
-    ```
+### 2. Run from a Registry (for Production)
 
-2.  **Build and start the services:**
-    Navigate to the project root directory in your terminal and run:
+For production, modify `docker-compose.yml` to use an `image` directive instead of `build`.
 
-    ```bash
-    docker-compose up --build -d
-    ```
-    *   `--build`: Forces Docker Compose to rebuild images before starting containers.
-    *   `-d`: Runs the containers in detached mode (in the background).
+```yaml
+# docker-compose.yml (production example)
+services:
+  worker:
+    image: your-registry/your-image-name:latest # Replace with your image
+    # ... other configurations
+  app:
+    image: your-registry/your-image-name:latest # Replace with your image
+    # ... other configurations
+```
 
-### 2. Run from Docker Hub (Production/Deployment)
-
-This method pulls pre-built Docker images from Docker Hub. Use this for production deployments where images are already published.
-
-1.  **Modify your `docker-compose.yml` to use `image` directives:**
-    Replace the `build` directives with `image` directives pointing to your Docker Hub repository. Also, remove the `volumes` mounts for `/app` as the code is already in the image.
-
-    ```yaml
-    # docker-compose.yml (example snippet)
-    services:
-      worker:
-        image: usernamepassword/wqb # Replace with your actual Docker Hub image name
-        # volumes: # Remove or comment out this line
-        #   - .:/app
-        # ... other configurations
-      app:
-        image: usernamepassword/wqb # Replace with your actual Docker Hub image name
-        # volumes: # Remove or comment out this line
-        #   - .:/app
-        # ... other configurations
-      flower:
-        image: mher/flower:0.9.7 # Flower image
-        # ... other configurations
-    ```
-    **Note:** Replace `usernamepassword/wqb` with your actual Docker Hub image name (e.g., `your_dockerhub_username/your_repo_name`).
-
-2.  **Pull and start the services:**
-    Navigate to the project root directory in your terminal and run:
-
-    ```bash
-    docker-compose up -d
-    ```
-    *   Docker Compose will automatically pull the specified images from Docker Hub if they are not available locally.
+Then, start the services:
+```bash
+docker-compose up -d
+```
 
 ## Verifying the Deployment
 
-After starting the services, you can verify their status and check logs:
-
-1.  **Check container status:**
+1.  **Check Container Status:**
     ```bash
     docker-compose ps
     ```
-    This command lists all services defined in your `docker-compose.yml` and their current status.
 
-2.  **View service logs:**
-    To see the logs for a specific service (e.g., `worker`):
+2.  **View Logs:**
     ```bash
-    docker-compose logs worker
-    ```
-    To view logs for all services:
-    ```bash
-    docker-compose logs
-    ```
-    To follow logs in real-time:
-    ```bash
-    docker-compose logs -f
+    docker-compose logs -f worker
     ```
 
 3.  **Access Flower UI:**
-    If your `flower` service is running and its port (default 5555) is exposed, you can access the Celery monitoring dashboard in your web browser:
-    ```
-    http://localhost:5555
-    ```
-    If deploying to a remote VPS, replace `localhost` with your VPS's IP address or domain name. Ensure your VPS firewall allows traffic on port 5555.
+    The Flower monitoring dashboard is available at [http://localhost:5555](http://localhost:5555).
 
 ## Sending Tasks
 
-Tasks are sent to the Celery broker using the `send_tasks.py` script. This script acts as a client to your Celery setup.
+Tasks are sent to the Celery workers by executing a script from within the `app` container.
 
-1.  **Ensure `CELERY_BROKER_URL` is set:**
-    The `send_tasks.py` script requires the `CELERY_BROKER_URL` environment variable to be set in your shell where you run the script. This should be the same broker URL that your Celery worker is connected to.
-
+1.  **Access the `app` container:**
     ```bash
-    export CELERY_BROKER_URL="amqps://user:password@host:port/vhost" # Use your actual broker URL
+    docker-compose exec app bash
     ```
 
-2.  **Run the `send_tasks.py` script:**
-    Navigate to the project root directory and execute the script:
+2.  **Run a Python script to send tasks:**
+    From the shell inside the container, you can run a script like `send_tasks.py` or execute Python code directly.
 
-    ```bash
-    python send_tasks.py
-    ```
-
-    The `send_tasks.py` script is designed to send multiple tasks by iterating through a predefined `fields` list. Each iteration sends a `simulate_single_alpha_task` with a different `regular` field.
+    **Example: Sending a single simulation task**
+    The primary task for running simulations is `wqb.tasks.simulate_task`.
 
     ```python
-    # send_tasks.py (excerpt)
-    from celery import Celery
-    import os
+    # Inside a Python script or interpreter in the 'app' container
+    from wqb.tasks import simulate_task
 
-    # --- Configuration for the Celery client --- #
-    # IMPORTANT: You MUST set the CELERY_BROKER_URL environment variable
-    # in your shell before running this script.
-    # Example: export CELERY_BROKER_URL="amqps://krmckymc:drgEi9XHXNwSSH9r02mLGtl9z5qKHMHQ@fuji.lmq.cloudamqp.com/krmckymc"
+    # Define the alpha or multi-alpha data
+    alpha_data = {
+        'type': 'REGULAR',
+        'settings': {
+            'instrumentType': 'EQUITY',
+            'region': 'USA',
+            'universe': 'TOP3000',
+            'delay': 1,
+            'decay': 13,
+            'neutralization': 'INDUSTRY',
+            'truncation': 0.13,
+            'pasteurization': 'ON',
+            'unitHandling': 'VERIFY',
+            'nanHandling': 'OFF',
+            'language': 'FASTEXPR',
+            'visualization': False
+        },
+        'regular': 'open / close',
+    }
 
-    # Create a minimal Celery app instance for sending tasks
-    # The broker URL will be read from the CELERY_BROKER_URL environment variable
-    app = Celery('wqb')
-
-    # This list defines the different 'regular' fields for each task
-    fields = ['assets', 'assets_curr', 'bookvalue_ps', 'capex', 'cash', 'cash_st', 'cashflow', 'cashflow_dividends', 'cashflow_fin', 'cashflow_invst', 'cashflow_op', 'cogs', 'current_ratio', 'debt', 'debt_lt', 'debt_st', 'depre_amort', 'ebit', 'ebitda', 'employee', 'enterprise_value', 'eps', 'equity', 'fnd6_acdo', 'fnd6_acodo', 'fnd6_acox', 'fnd6_acqgdwl', 'fnd6_acqintan', 'fnd6_adesinda_curcd', 'fnd6_aldo', 'fnd6_am', 'fnd6_aodo', 'fnd6_aox', 'fnd6_aqc', 'fnd6_aqi', 'fnd6_aqs', 'fnd6_beta', 'fnd6_capxs', 'fnd6_capxv', 'fnd6_caxts', 'fnd6_ceql', 'fnd6_ch', 'fnd6_ci', 'fnd6_cibegni', 'fnd6_cicurr', 'fnd6_cidergl', 'fnd6_cik', 'fnd6_cimii', 'fnd6_ciother', 'fnd6_cipen', 'fnd6_cisecgl', 'fnd6_citotal', 'fnd6_city', 'fnd6_cld2', 'fnd6_cld3', 'fnd6_cld4', 'fnd6_cld5', 'fnd6_cogss', 'fnd6_cptmfmq_actq', 'fnd6_cptmfmq_atq', 'fnd6_cptmfmq_ceqq', 'fnd6_cptmfmq_dlttq', 'fnd6_cptmfmq_dpq', 'fnd6_cptmfmq_lctq', 'fnd6_cptmfmq_oibdpq', 'fnd6_cptmfmq_opepsq', 'fnd6_cptmfmq_saleq', 'fnd6_cptnewqeventv110_actq', 'fnd6_cptnewqeventv110_apq', 'fnd6_cptnewqeventv110_atq', 'fnd6_cptnewqeventv110_ceqq', 'fnd6_cptnewqeventv110_dlttq', 'fnd6_cptnewqeventv110_dpq', 'fnd6_cptnewqeventv110_epsf12', 'fnd6_cptnewqeventv110_epsfxq', 'fnd6_cptnewqeventv110_epsx12', 'fnd6_cptnewqeventv110_lctq', 'fnd6_cptnewqeventv110_ltq', 'fnd6_cptnewqeventv110_nopiq', 'fnd6_cptnewqeventv110_oeps12', 'fnd6_cptnewqeventv110_oiadpq', 'fnd6_cptnewqeventv110_oibdpq', 'fnd6_cptnewqeventv110_opepsq', 'fnd6_cptnewqv1300_actq', 'fnd6_cptnewqv1300_apq', 'fnd6_cptnewqv1300_atq', 'fnd6_cptnewqv1300_ceqq', 'fnd6_cptnewqv1300_dlttq', 'fnd6_cptnewqv1300_dpq', 'fnd6_cptnewqv1300_epsf12', 'fnd6_cptnewqv1300_epsfxq', 'fnd6_cptnewqv1300_epsx12', 'fnd6_cptnewqv1300_lctq', 'fnd6_cptnewqv1300_ltq', 'fnd6_cptnewqv1300_nopiq', 'fnd6_cptnewqv1300_oeps12', 'fnd6_cptnewqv1300_oiadpq', 'fnd6_cptnewqv1300_oibdpq', 'fnd6_cptnewqv1300_opepsq', 'fnd6_cptnewqv1300_rectq', 'fnd6_cptnewqv1300_req', 'fnd6_cptnewqv1300_saleq', 'fnd6_cptnew... # tr... [truncated]
-
-# --- Send tasks by their string name --- #
-
-# Task name for single alpha simulation (defined in wqb/tasks.py)
-single_alpha_task_name = 'wqb.tasks.simulate_single_alpha_task'
-for field in fields:
-    print(f"Sending {single_alpha_task_name}...")
-    task = app.send_task(single_alpha_task_name, args=[{
-    'type': 'REGULAR',
-    'settings': {
-        'instrumentType': 'EQUITY',
-        'region': 'USA',
-        'universe': 'TOP3000',
-        'delay': 1,
-        'decay': 13,
-        'neutralization': 'INDUSTRY',
-        'truncation': 0.13,
-        'pasteurization': 'ON',
-        'unitHandling': 'VERIFY',
-        'nanHandling': 'OFF',
-        'language': 'FASTEXPR',
-        'visualization': False
-    },
-    'regular': f'liabilities/{field}',
-}])
-    print(f"Task sent with ID: {task.id}")
-
-print("Done sending tasks.")
+    # Send the task to the Celery queue
+    task = simulate_task.delay(alpha_data)
+    print(f"Sent task with ID: {task.id}")
     ```
 
-### Sending Multiple Tasks (Custom List Example)
+    **Example: Sending multiple tasks concurrently**
+    You can use the `wqb.tasks.simulate_tasks` task to process a list of simulation targets concurrently.
 
-If you want to send a custom list of tasks, you can modify the `send_tasks.py` script or create a new one. Here's an example of how you might send multiple tasks with different alpha data:
+    ```python
+    from wqb.tasks import simulate_tasks
 
-```python
-# send_custom_tasks.py (example)
-from celery import Celery
-import os
+    # A list of simulation targets
+    sim_targets = [
+        {'type': 'REGULAR', 'settings': {...}, 'regular': 'alpha_1'},
+        {'type': 'REGULAR', 'settings': {...}, 'regular': 'alpha_2'},
+    ]
 
-app = Celery('wqb')
-
-# Ensure CELERY_BROKER_URL is set in your environment
-# export CELERY_BROKER_URL="amqps://user:password@host:port/vhost"
-
-single_alpha_task_name = 'wqb.tasks.simulate_single_alpha_task'
-
-# Define a list of alpha data for multiple tasks
-custom_alpha_tasks = [
-    {
-        'type': 'REGULAR',
-        'settings': {
-            'instrumentType': 'EQUITY',
-            'region': 'USA',
-            'universe': 'TOP3000',
-            'delay': 1,
-            'decay': 13,
-            'neutralization': 'INDUSTRY',
-            'truncation': 0.13,
-            'pasteurization': 'ON',
-            'unitHandling': 'VERIFY',
-            'nanHandling': 'OFF',
-            'language': 'FASTEXPR',
-            'visualization': False
-        },
-        'regular': 'liabilities/custom_field_1',
-    },
-    {
-        'type': 'REGULAR',
-        'settings': {
-            'instrumentType': 'EQUITY',
-            'region': 'USA',
-            'universe': 'TOP3000',
-            'delay': 1,
-            'decay': 13,
-            'neutralization': 'INDUSTRY',
-            'truncation': 0.13,
-            'pasteurization': 'ON',
-            'unitHandling': 'VERIFY',
-            'nanHandling': 'OFF',
-            'language': 'FASTEXPR',
-            'visualization': False
-        },
-        'regular': 'liabilities/custom_field_2',
-    },
-    # Add more alpha tasks as needed
-]
-
-for i, alpha_data in enumerate(custom_alpha_tasks):
-    print(f"Sending custom task {i+1}...")
-    task = app.send_task(single_alpha_task_name, args=[alpha_data])
-    print(f"Custom task {i+1} sent with ID: {task.id}")
-
-print("Done sending custom tasks.")
-```
-
-To run this example, save it as `send_custom_tasks.py` (or similar) and execute it in your terminal after setting the `CELERY_BROKER_URL`:
-
-```bash
-export CELERY_BROKER_URL="amqps://user:password@host:port/vhost"
-python send_custom_tasks.py
-```
-
-### Sending a Multi-Alpha Task
-
-If you want to send a single task that processes multiple alphas at once (using `wqb.tasks.simulate_alpha_task`), you can prepare a list of alpha definitions and send them as a single argument.
-
-```python
-# send_multi_alpha_task.py (example)
-from celery import Celery
-import os
-
-app = Celery('wqb')
-
-# Ensure CELERY_BROKER_URL is set in your environment
-# export CELERY_BROKER_URL="amqps://user:password@host:port/vhost"
-
-multi_alpha_task_name = 'wqb.tasks.simulate_alpha_task'
-
-# Define a list of alpha data for a single multi-alpha task
-multi_alpha_data = [
-    {
-        'type': 'REGULAR',
-        'settings': {
-            'instrumentType': 'EQUITY',
-            'region': 'USA',
-            'universe': 'TOP3000',
-            'delay': 1,
-            'decay': 13,
-            'neutralization': 'INDUSTRY',
-            'truncation': 0.13,
-            'pasteurization': 'ON',
-            'unitHandling': 'VERIFY',
-            'nanHandling': 'OFF',
-            'language': 'FASTEXPR',
-            'visualization': False
-        },
-        'regular': 'liabilities/multi_field_1',
-    },
-    {
-        'type': 'REGULAR',
-        'settings': {
-            'instrumentType': 'EQUITY',
-            'region': 'USA',
-            'universe': 'TOP3000',
-            'delay': 1,
-            'decay': 13,
-            'neutralization': 'INDUSTRY',
-            'truncation': 0.13,
-            'pasteurization': 'ON',
-            'unitHandling': 'VERIFY',
-            'nanHandling': 'OFF',
-            'language': 'FASTEXPR',
-            'visualization': False
-        },
-        'regular': 'liabilities/multi_field_2',
-    },
-    # Add more alpha definitions to this list
-]
-
-print(f"Sending multi-alpha task...")
-task = app.send_task(multi_alpha_task_name, args=[multi_alpha_data])
-print(f"Multi-alpha task sent with ID: {task.id}")
-
-print("Done sending multi-alpha task.")
-```
-
-To run this example, save it as `send_multi_alpha_task.py` (or similar) and execute it in your terminal after setting the `CELERY_BROKER_URL`:
-
-```bash
-export CELERY_BROKER_URL="amqps://user:password@host:port/vhost"
-python send_multi_alpha_task.py
-```
+    # Send the list of targets to the concurrent simulation task
+    task = simulate_tasks.delay(sim_targets)
+    print(f"Sent concurrent task with ID: {task.id}")
+    ```
 
 ## Stopping the Services
 
-To stop and remove all running containers, networks, and volumes created by Docker Compose:
-
+To stop and remove all containers, networks, and volumes:
 ```bash
 docker-compose down
 ```
-
-## Cloud Deployment Notes
-
-When deploying to cloud platforms (e.g., `run.claw.cloud`, AWS ECS, Google Cloud Run, Azure Container Instances), the principles are similar:
-
-*   **Environment Variables:** You will configure environment variables directly within the cloud platform's deployment interface or via their CLI/API, rather than using a `.env` file.
-*   **Container Images:** You will specify the Docker Hub image name (e.g., `usernamepassword/wqb`) for each service.
-*   **Startup Commands:** For each service (e.g., `worker`, `app`), you will explicitly define the container's startup command and arguments in the platform's configuration.
-    *   For `worker`: `celery -A wqb.tasks worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-8}`
-    *   For `app`: `tail -f /dev/null` (or your specific application command)
-    *   For `flower`: The `mher/flower` image usually has a default command, but if needed, it's `celery flower --broker=${CELERY_BROKER_URL}`.
-*   **Port Mapping:** Ensure any necessary ports (like Flower's 5555) are correctly exposed and mapped by the cloud platform's networking configuration.
-*   **Resource Allocation:** Configure CPU and memory resources as needed for each service.

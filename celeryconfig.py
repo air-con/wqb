@@ -1,3 +1,8 @@
+from wqb.logging_config import setup_logging
+
+# Initialize logging as the first step
+setup_logging()
+
 import os
 
 # 基础配置
@@ -35,7 +40,3 @@ task_annotations = {
 # 其他优化配置
 worker_max_tasks_per_child = 2000
 worker_max_memory_per_child = 300000  # 300MB
-
-# 日志配置
-worker_log_format = '[%(asctime)s] [%(levelname)s] [%(process)d] %(message)s'
-worker_task_log_format = '[%(asctime)s] [%(levelname)s] [%(process)d] [%(task_name)s(%(task_id)s)] %(message)s'
