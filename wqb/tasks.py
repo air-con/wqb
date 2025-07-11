@@ -38,7 +38,7 @@ def _format_sim_result(logger, input_data, response):
             'success': False,
             'error': 'Invalid response from simulation server',
             'input': input_data,
-            'response_text': response.text if response else 'No response'
+            'response_json': response.text if response else 'No response'
         }
 
     _log_response(logger, response)
@@ -48,7 +48,7 @@ def _format_sim_result(logger, input_data, response):
         status = response_json.get('status', 'UNKNOWN').upper()
 
         if status in ('COMPLETE', 'WARNING'):
-            return {'success': True, 'input': input_data, 'result': response_json}
+            return {'success': True, 'input': input_data, 'response_json': response_json}
         else:
             logger.warning(f"Simulation finished with non-success status: {status}")
             return {
@@ -63,7 +63,7 @@ def _format_sim_result(logger, input_data, response):
             'success': False,
             'error': 'Failed to decode JSON response',
             'input': input_data,
-            'response_text': response.text
+            'response_json': response.text
         }
 
 # 改进的全局会话管理
