@@ -86,7 +86,9 @@ class AutoAuthSession(Session):
             if expected(resp):
                 break
             self.logger.warning(f"{self}.request(...) [{tries} tries]: {resp.status_code} {resp.reason} {resp.text} {resp.elapsed} {resp.headers}")
-            if 'SIMULATION_LIMIT_EXCEEDED' in resp.json().get('detail', ''):
+            if resp.status_code == 504:
+                time.sleep(delay_unexpected)
+            elif 'SIMULATION_LIMIT_EXCEEDED' in resp.json().get('detail', ''):
                 time.sleep(10 * delay_unexpected)
             else:
                 time.sleep(delay_unexpected)
