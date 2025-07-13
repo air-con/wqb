@@ -34,7 +34,8 @@ for field in fields:
         'language': 'FASTEXPR',
         'visualization': False
     },
-    'regular': f'open / {field}',
+    #  'debt', 'debt_lt', 'debt_st', 'depre_amort', 'ebit'
+    'regular': f'ebit / {field} + open',
 }])
     print(f"Task sent with ID: {task.id}")
 
