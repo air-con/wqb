@@ -1,27 +1,17 @@
 version: '3.8'
 
 services:
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: "celery -A wqb.tasks worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-8}"
-    volumes:
-      - .:/app
+  # 核心模拟任务Worker，保持不变
+  worker-simulations:
+    build: .
+    command: celery -A wqb.tasks worker --loglevel=info --concurrency=3 -Q simulations
     env_file:
       - .env
-    restart: unless-stopped
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    tty: true
-    stdin_open: true
-    volumes:
-      - .:/app
+  # 合并后的定时任务服务
+  periodic-service:
+    build: .
+    command: >
+      celery -A wqb.tasks worker --loglevel=info --concurrency=1 -Q periodic_queue -B --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
       - .env
-    restart: unless-stopped
-
-  

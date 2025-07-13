@@ -1,14 +1,24 @@
 
 
+
 import os
 import logging
 import requests
 import json
 import hashlib
+import asyncio
+import nest_asyncio
 from celery import Celery
 from celery.schedules import crontab
 from lark_oapi.api.bitable.v1 import ListAppTableRecordRequest, ListAppTableRecordResponse, BatchDeleteAppTableRecordRequest, BatchDeleteAppTableRecordResponse
 import lark_oapi as lark
+
+# Import the correct session manager and URL
+from wqb.tasks import get_wqb_session
+from wqb.wqb_urls import URL_SIMULATIONS
+
+# Apply nest_asyncio to allow running an event loop inside another (e.g., Celery worker)
+nest_asyncio.apply()
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -73,24 +83,47 @@ def batch_delete_lark_records(lark_client, app_token, table_id, record_ids):
         logger.info(f"Successfully deleted {len(record_ids)} records.")
 
 
-def get_status_from_record(record):
-    """Determines the task status based on the record's state and traceback."""
+def get_status_for_single_item(record):
+    """Determines the task status for a single JSON object based on the record's state and traceback."""
     state = record.fields.get("state")
     if state == "SUCCESS":
         return "SUCCESS"
 
     traceback = record.fields.get("traceback", "").lower()
-    # Keywords indicating a technical, possibly transient, error
     technical_error_keywords = [
         "requestexception", "maxretryerror", "timeout", "connectionerror", 
         "httperror", "sslerror", "proxyerror"
     ]
 
     if any(keyword in traceback for keyword in technical_error_keywords):
-        return "PENDING" # It's a technical issue, so we mark it for retry/later check
+        return "PENDING"
     
-    return "FAILED" # Otherwise, it's a business logic failure
+    return "FAILED"
 
+async def _get_child_status_async(session, child_id):
+    """Asynchronously gets the status of a single child simulation."""
+    url = f"{URL_SIMULATIONS}/{child_id}"
+    try:
+        resp = await session.retry('GET', url, max_tries=5, delay_key_error=1.0)
+        if resp and resp.ok:
+            sim_data = resp.json()
+            return sim_data.get("status")
+    except Exception as e:
+        logger.error(f"Error fetching simulation status for {child_id}: {e}")
+    return None
+
+async def _get_detailed_statuses_async(wqb_session, child_ids):
+    """Asynchronously gets all child statuses and determines the final status list."""
+    tasks = [_get_child_status_async(wqb_session, child_id) for child_id in child_ids]
+    child_statuses = await asyncio.gather(*tasks)
+    
+    final_statuses = []
+    for status in child_statuses:
+        if status == "ERROR":
+            final_statuses.append("FAILED")
+        else:
+            final_statuses.append("PENDING")
+    return final_statuses
 
 @app.task
 def check_and_process_task_results():
@@ -115,10 +148,13 @@ def check_and_process_task_results():
 
     updates = []
     processed_lark_record_ids = []
+    
+    wqb_session = get_wqb_session(logger)
 
     for record in records:
         lark_record_id = record.record_id
         original_input_str = record.fields.get("input")
+        response_json_str = record.fields.get("response_json")
 
         if not original_input_str:
             logger.warning(f"Skipping record {lark_record_id} due to missing input.")
@@ -126,27 +162,44 @@ def check_and_process_task_results():
 
         try:
             input_data = json.loads(original_input_str)
-            
-            # Determine if the input is a list (JSON array) or a dict (JSON object)
-            items_to_process = input_data if isinstance(input_data, list) else [input_data]
-            
-            status = get_status_from_record(record)
+            is_array = isinstance(input_data, list)
 
-            for item in items_to_process:
-                # Dump each item to a string with sorted keys for a canonical representation
-                canonical_json_str = json.dumps(item, sort_keys=True, ensure_ascii=False)
-                # Generate the identifier from the canonical string
-                identifier = hashlib.md5(canonical_json_str.encode('utf-8')).hexdigest()
+            items_to_process = input_data if is_array else [input_data]
+            item_statuses = []
+
+            if is_array:
+                if not response_json_str:
+                    logger.warning(f"Skipping array record {lark_record_id} due to missing response_json.")
+                    continue
                 
+                response_data = json.loads(response_json_str)
+                top_level_status = response_data.get("status")
+
+                if top_level_status in ["COMPLETE", "WARNING"]:
+                    item_statuses = ["SUCCESS"] * len(items_to_process)
+                else:
+                    child_ids = response_data.get("children", [])
+                    if len(child_ids) != len(items_to_process):
+                        logger.error(f"Mismatch between input items and child simulations for {lark_record_id}")
+                        continue
+                    
+                    item_statuses = asyncio.run(_get_detailed_statuses_async(wqb_session, child_ids))
+            else:
+                status = get_status_for_single_item(record)
+                item_statuses.append(status)
+
+            for i, item in enumerate(items_to_process):
+                canonical_json_str = json.dumps(item, sort_keys=True, ensure_ascii=False)
+                identifier = hashlib.md5(canonical_json_str.encode('utf-8')).hexdigest()
                 updates.append({
                     "record_id": identifier,
-                    "status": status
+                    "status": item_statuses[i]
                 })
-
+            
             processed_lark_record_ids.append(lark_record_id)
 
         except (json.JSONDecodeError, Exception) as e:
-            logger.error(f"Could not process record {lark_record_id}. Invalid input JSON or other error: {e}")
+            logger.error(f"Could not process record {lark_record_id}. Error: {e}", exc_info=True)
             continue
 
     if not updates:
@@ -171,18 +224,18 @@ def check_and_process_task_results():
         
         logger.info(f"Successfully sent status for {len(updates)} tasks to API.")
 
-        # If API call is successful, batch delete the records from Lark
         batch_delete_lark_records(lark_client, app_token, table_id, processed_lark_record_ids)
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to send status updates to API. Error: {e}")
 
 
-# Configure Celery Beat schedule
 app.conf.beat_schedule = {
     'check-results-every-two-hours': {
         'task': 'wqb.periodic_tasks.check_and_process_task_results',
-        'schedule': crontab(minute='0', hour='*/2'), # Every 2 hours
+        'schedule': crontab(minute='0', hour='*/2'),
+        'options': {'queue': 'periodic_queue'}
     },
 }
+
 
