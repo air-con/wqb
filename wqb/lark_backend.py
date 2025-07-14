@@ -1,19 +1,22 @@
 import os
 import json
 import logging
-import threading
+import asyncio
+import nest_asyncio
 from celery.backends.base import BaseBackend
 from lark_oapi.api.bitable.v1 import (
     AppTableRecord,
-    CreateAppTableRecordRequest,
-    ListAppTableRecordRequest,
-    ListAppTableRecordResponse,
-    UpdateAppTableRecordRequest,
-    UpdateAppTableRecordResponse,
-    CreateAppTableRecordResponse,
+    BatchCreateAppTableRecordRequest,
+    BatchCreateAppTableRecordResponse,
 )
 
 import lark_oapi as lark
+
+# Import WQB session and URL
+from wqb.tasks import get_wqb_session
+from wqb.wqb_urls import URL_SIMULATIONS
+
+nest_asyncio.apply()
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -35,7 +38,6 @@ class LarkBackend(BaseBackend):
                 lark.Client.builder()
                 .app_id(os.environ.get("LARK_APP_ID"))
                 .app_secret(os.environ.get("LARK_APP_SECRET"))
-                # The log level is now controlled by the global Celery logger
                 .build()
             )
 
@@ -47,95 +49,101 @@ class LarkBackend(BaseBackend):
         )
         logger.error(error_message)
 
-    def _get_record_by_task_id(self, task_id):
-        if not self.lark_client:
-            return None
+    def _build_record_fields(self, task_id, item_input, item_state, item_success, response_data, traceback=None, error=None, exception=None):
+        """A centralized helper to build the dictionary of fields for a Lark record."""
+        return {
+            "task_id": task_id,
+            "state": item_state,
+            "success": str(item_success),
+            "input": json.dumps(item_input, ensure_ascii=False),
+            "response_json": json.dumps(response_data, ensure_ascii=False),
+            "traceback": str(traceback) if traceback else "",
+            "error": str(error) if error else "",
+            "exception": str(exception) if exception else "",
+        }
 
-        request: ListAppTableRecordRequest = (
-            ListAppTableRecordRequest.builder()
-            .app_token(self.app_token)
-            .table_id(self.table_id)
-            .filter(f'CurrentValue.[task_id] = "{task_id}"')
-            .build()
-        )
+    async def _get_child_simulation_status(self, session, child_id):
+        url = f"{URL_SIMULATIONS}/{child_id}"
+        try:
+            resp = await session.retry('GET', url, max_tries=5, delay_key_error=1.0)
+            if resp and resp.ok:
+                return resp.json() # Return the full response
+        except Exception as e:
+            logger.error(f"Error fetching simulation status for {child_id}: {e}")
+        return None # Return None on failure
 
-        response: ListAppTableRecordResponse = self.lark_client.bitable.v1.app_table_record.list(request)
-
-        if not response.success():
-            self._log_lark_error(response, "list_records")
-            return None
-
-        if not response.data.items:
-            return None
-
-        return response.data.items[0]
-
-    def _store_result_async(self, task_id, result, state, traceback=None):
+    async def _store_result_async(self, task_id, result, state, traceback=None):
         if not self.lark_client:
             return
 
-        # The 'result' from Celery is now the dictionary from _format_sim_result
         if not isinstance(result, dict):
             logger.warning(f"Received result of unexpected type: {type(result)}")
-            # Fallback for unexpected result types
             result = {'error': 'Result is not a dictionary', 'response_json': str(result)}
 
-        record = self._get_record_by_task_id(task_id)
+        input_data = result.get('input', '')
+        items_to_process = input_data if isinstance(input_data, list) else [input_data]
+        records_to_create = []
 
-        fields = {
-            "task_id": task_id,
-            "state": state,
-            "traceback": str(traceback) if traceback else "",
-            # Safely get values from the result dictionary
-            "success": str(result.get('success', False)),
-            "error": str(result.get('error', '')),
-            "input": str(result.get('input', '')),
-            "response_json": str(result.get('response_json', '')),
-            "exception": str(result.get('exception', '')),
-        }
+        response_json = result.get('response_json', {})
+        top_level_status = response_json.get("status")
 
-        # Filter out any keys that are not actual columns in your table if necessary
-        # For now, we assume all keys in 'fields' are valid column names.
+        # --- Handle JSON Array --- 
+        if isinstance(input_data, list):
+            if top_level_status in ["COMPLETE", "WARNING"]:
+                for item in items_to_process:
+                    fields = self._build_record_fields(task_id, item, "SUCCESS", True, response_json)
+                    records_to_create.append(AppTableRecord.builder().fields(fields).build())
+            
+            elif top_level_status and 'children' in response_json:
+                wqb_session = get_wqb_session(logger)
+                child_ids = response_json.get("children", [])
+                if len(child_ids) == len(items_to_process):
+                    tasks = [self._get_child_simulation_status(wqb_session, child_id) for child_id in child_ids]
+                    child_results = await asyncio.gather(*tasks)
 
-        app_table_record = AppTableRecord.builder().fields(fields).build()
+                    for i, item in enumerate(items_to_process):
+                        child_res = child_results[i]
+                        child_status = child_res.get("status") if child_res else "ERROR"
+                        
+                        item_state = "SUCCESS" if child_status in ["COMPLETE", "WARNING"] else "FAILED"
+                        item_success = item_state == "SUCCESS"
+                        if child_status == "CANCELLED":
+                            item_state = "FAILED"
 
-        if record:
-            request: UpdateAppTableRecordRequest = (
-                UpdateAppTableRecordRequest.builder()
-                .app_token(self.app_token)
-                .table_id(self.table_id)
-                .record_id(record.record_id)
-                .request_body(app_table_record)
-                .build()
-            )
-            response: UpdateAppTableRecordResponse = self.lark_client.bitable.v1.app_table_record.update(request)
-            if not response.success():
-                self._log_lark_error(response, "update_record")
+                        fields = self._build_record_fields(task_id, item, item_state, item_success, child_res or {})
+                        records_to_create.append(AppTableRecord.builder().fields(fields).build())
+                else: # Fallback for mismatch
+                    for item in items_to_process:
+                        fields = self._build_record_fields(task_id, item, "FAILED", False, response_json, error="Child ID mismatch")
+                        records_to_create.append(AppTableRecord.builder().fields(fields).build())
+            else: # Fallback for other array failures
+                for item in items_to_process:
+                    fields = self._build_record_fields(task_id, item, "FAILED", False, response_json, error=result.get('error'), exception=result.get('exception'), traceback=traceback)
+                    records_to_create.append(AppTableRecord.builder().fields(fields).build())
         else:
-            request: CreateAppTableRecordRequest = (
-                CreateAppTableRecordRequest.builder()
-                .app_token(self.app_token)
-                .table_id(self.table_id)
-                .request_body(app_table_record)
-                .build()
-            )
-            response: CreateAppTableRecordResponse = self.lark_client.bitable.v1.app_table_record.create(request)
+            # --- Handle Single JSON Object --- 
+            fields = self._build_record_fields(task_id, input_data, state, result.get('success', False), response_json, traceback, result.get('error'), result.get('exception'))
+            records_to_create.append(AppTableRecord.builder().fields(fields).build())
+
+        if records_to_create:
+            request = BatchCreateAppTableRecordRequest.builder().app_token(self.app_token).table_id(self.table_id).request_body(records_to_create).build()
+            response: BatchCreateAppTableRecordResponse = self.lark_client.bitable.v1.app_table_record.batch_create(request)
             if not response.success():
-                self._log_lark_error(response, "create_record")
+                self._log_lark_error(response, "batch_create_records")
 
     def store_result(self, task_id, result, state, traceback=None, request=None, **kwargs):
         if self.lark_client:
-            thread = threading.Thread(target=self._store_result_async, args=(task_id, result, state, traceback))
-            thread.start()
+            asyncio.run(self._store_result_async(task_id, result, state, traceback))
 
+    # --- Methods below are not used by this backend but are required by the BaseBackend interface ---
     def get_state(self, task_id):
-        record = self._get_record_by_task_id(task_id)
-        return record.fields.get("state") if record and hasattr(record, 'fields') else None
+        # This backend is write-only for results.
+        return "PENDING" 
 
     def get_result(self, task_id):
-        record = self._get_record_by_task_id(task_id)
-        return record.fields.get("result") if record and hasattr(record, 'fields') else None
+        # This backend is write-only for results.
+        return None
 
     def get_traceback(self, task_id):
-        record = self._get_record_by_task_id(task_id)
-        return record.fields.get("traceback") if record and hasattr(record, 'fields') else None
+        # This backend is write-only for results.
+        return None
