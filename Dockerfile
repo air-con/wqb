@@ -1,25 +1,27 @@
-# 使用一个功能更齐全的 Python 镜像，它基于 Debian "Bullseye"
-# 这个镜像已经包含了大部分编译 C 扩展所需的工具
-FROM python:3.11-bullseye
+# 依然使用 slim 镜像作为基础
+FROM python:3.11-slim
 
-# 安装 Rust 编译器，这是 cryptography 等包的硬性要求
+# 在一步之内，安装所有可能的编译工具
+# 这是为了确保任何包（包括需要 C 或 Rust 编译的）都能成功安装
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends rustc && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    python3-dev \
+    cargo \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
 WORKDIR /app
 
-# 复制项目依赖定义文件
+# 复制依赖文件
 COPY pyproject.toml ./
 
-# 安装所有依赖，包括项目本身
-# 在这个功能齐全的环境中，这个命令将会成功
+# 在这个准备充分的环境中，安装所有依赖
 RUN pip install --upgrade pip && \
     pip install .
 
 # 复制所有项目代码
 COPY . .
 
-# CMD/ENTRYPOINT 将在 docker-compose.yml 中定义
+# 容器的启动命令将在 docker-compose.yml 中定义
