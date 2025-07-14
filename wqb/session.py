@@ -33,7 +33,7 @@ class ApiClient:
         Returns:
             str: 登录获取的 cookie，如果失败返回 None
         """
-        url = f'https://{self.domain}/login'
+        url = f'{self.domain}/login'
         headers = {
             "X-API-Key": self.api_key,
             "Content-Type": "application/json"
