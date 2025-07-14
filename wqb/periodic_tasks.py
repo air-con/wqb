@@ -8,8 +8,8 @@ import json
 import hashlib
 import asyncio
 import nest_asyncio
-from celery import Celery
 from celery.schedules import crontab
+from .celery import app
 from lark_oapi.api.bitable.v1 import ListAppTableRecordRequest, ListAppTableRecordResponse, BatchDeleteAppTableRecordRequest, BatchDeleteAppTableRecordResponse
 import lark_oapi as lark
 
@@ -23,8 +23,7 @@ nest_asyncio.apply()
 # Configure logger
 logger = logging.getLogger(__name__)
 
-app = Celery('wqb')
-app.config_from_object('celeryconfig')
+
 
 
 def get_lark_client():

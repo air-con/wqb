@@ -4,8 +4,7 @@ services:
   # 核心模拟任务Worker，保持不变
   worker-simulations:
     build: .
-    # command: celery -A wqb.tasks worker --loglevel=info --concurrency=3 -Q celery
-    command: celery -A wqb.tasks worker --loglevel=info --concurrency=3
+    command: celery -A wqb.celery worker --loglevel=info --concurrency=3 -Q simulations
     env_file:
       - .env
 
@@ -13,6 +12,6 @@ services:
   periodic-service:
     build: .
     command: >
-      celery -A wqb.tasks worker --loglevel=info --concurrency=1 -Q periodic_queue -B --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      celery -A wqb.celery worker --loglevel=info --concurrency=1 -Q periodic_queue -B --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
       - .env
