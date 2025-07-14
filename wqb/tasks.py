@@ -1,6 +1,5 @@
-from celery import Task
+from celery import Celery, Task
 from . import wqb_session
-from .celery import app
 from celery.signals import worker_process_init
 from celery.utils.log import get_task_logger
 import threading
@@ -8,7 +7,13 @@ import os
 import time
 import nest_asyncio
 
+nest_asyncio.apply()
 
+# Create a Celery app instance
+app = Celery('wqb')
+
+# Load the configuration from the celeryconfig.py file
+app.config_from_object('celeryconfig')
 
 # Create a lock to ensure only one simulation task runs at a time per worker process
 simulation_lock = threading.Lock()
@@ -195,4 +200,3 @@ def simulate_tasks(self, sim_targets):
     except Exception as e:
         self.logger.error(f"Task failed unexpectedly: {e}", exc_info=True)
         raise
-
