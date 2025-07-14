@@ -2,7 +2,6 @@ import os
 import json
 import logging
 import asyncio
-import nest_asyncio
 from celery.backends.base import BaseBackend
 from lark_oapi.api.bitable.v1 import (
     AppTableRecord,
@@ -15,8 +14,6 @@ import lark_oapi as lark
 # Import WQB session and URL
 from wqb.tasks import get_wqb_session
 from wqb.wqb_urls import URL_SIMULATIONS
-
-nest_asyncio.apply()
 
 # Configure logger
 logger = logging.getLogger(__name__)
