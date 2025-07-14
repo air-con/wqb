@@ -35,7 +35,7 @@ for field in fields:
         'visualization': False
     },
     #  'debt', 'debt_lt', 'debt_st', 'depre_amort', 'ebit'
-    'regular': f'ebit / {field} + open',
+    'regular': f'ebit / {field} + close',
 }])
     print(f"Task sent with ID: {task.id}")
 
