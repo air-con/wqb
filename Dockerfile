@@ -1,10 +1,16 @@
 # 使用一个官方的、精简的 Python 镜像作为基础
 FROM python:3.11-slim
 
-# 设置环境变量，防止 Python 写入 .pyc 文件
+# 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE 1
-# 确保 Python 输出是无缓冲的，便于在 Docker 日志中实时查看
 ENV PYTHONUNBUFFERED 1
+
+# 新增：安装系统级的构建依赖
+# 这对于编译某些Python包的C扩展是必需的
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential python3-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
 WORKDIR /app
@@ -18,4 +24,3 @@ RUN pip install .
 # 复制所有项目代码到工作目录
 COPY . .
 
-# CMD 不在这里设置，因为我们将为每个服务在 docker-compose.yml 中指定不同的启动命令

@@ -1,29 +1,30 @@
 version: '3.8'
 
 services:
-  worker:
-    image: usernamepassword/wqb # Replace with your actual Docker Hub image name (e.g., your_dockerhub_username/your_repo_name)
-    command: "celery -A wqb.tasks worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-8}"
+  # 核心模拟任务 Worker
+  worker-simulations:
+    image: usernamepassword/wqb # 确保这里是您正确的 Docker Hub 镜像名
+    command: celery -A wqb.tasks worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-3} -Q simulations
     env_file:
       - .env
     restart: unless-stopped
 
-  app:
-    image: usernamepassword/wqb # Replace with your actual Docker Hub image name (e.g., your_dockerhub_username/your_repo_name)
-    tty: true
-    stdin_open: true
+  # 合并后的定时任务服务
+  periodic-service:
+    image: usernamepassword/wqb # 确保这里是您正确的 Docker Hub 镜像名
+    command: >
+      celery -A wqb.tasks worker --loglevel=info --concurrency=1 -Q periodic_queue -B --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
       - .env
     restart: unless-stopped
 
+  # Flower 监控服务
   flower:
-    image: mher/flower:0.9.7
+    image: mher/flower:latest # 建议使用较新版本的 flower
     ports:
       - "5555:5555"
+    # env_file 和 environment 都可以，但 env_file 更简洁
     env_file:
       - .env
-    environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-    depends_on:
-      - worker
+    # Flower 只需要连接到 Broker，不需要依赖于特定的 worker
     restart: unless-stopped

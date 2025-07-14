@@ -4,7 +4,8 @@ services:
   # 核心模拟任务Worker，保持不变
   worker-simulations:
     build: .
-    command: celery -A wqb.tasks worker --loglevel=info --concurrency=3 -Q simulations
+    # command: celery -A wqb.tasks worker --loglevel=info --concurrency=3 -Q celery
+    command: celery -A wqb.tasks worker --loglevel=info --concurrency=3
     env_file:
       - .env
 
