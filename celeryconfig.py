@@ -13,14 +13,14 @@ task_imports = ('wqb.tasks', 'wqb.periodic_tasks')
 
 # 定义队列
 task_queues = (
-    Queue('simulations', routing_key='simulations'),
+    Queue('celery', routing_key='celery'),
     Queue('periodic_queue', routing_key='periodic'),
 )
 
 # 定义任务路由
 task_routes = {
-    'wqb.tasks.simulate_task': {'queue': 'simulations', 'routing_key': 'simulations'},
-    'wqb.tasks.simulate_tasks': {'queue': 'simulations', 'routing_key': 'simulations'},
+    'wqb.tasks.simulate_task': {'queue': 'celery', 'routing_key': 'celery'},
+    'wqb.tasks.simulate_tasks': {'queue': 'celery', 'routing_key': 'celery'},
     'wqb.periodic_tasks.check_and_process_task_results': {'queue': 'periodic_queue', 'routing_key': 'periodic'},
 }
 
