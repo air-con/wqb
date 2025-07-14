@@ -5,9 +5,6 @@ from celery.utils.log import get_task_logger
 import threading
 import os
 import time
-import nest_asyncio
-
-nest_asyncio.apply()
 
 # Create a Celery app instance
 app = Celery('wqb')
