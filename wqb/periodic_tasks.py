@@ -233,7 +233,8 @@ app.conf.beat_schedule = {
     'check-results-every-two-hours': {
         'task': 'wqb.periodic_tasks.check_and_process_task_results',
         'schedule': crontab(minute='0', hour='*/2'),
-        'options': {'queue': 'periodic_queue'}
+        'options': {'queue': 'periodic_queue'},
+        'run_on_start': True
     },
 }
 
