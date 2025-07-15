@@ -3,6 +3,9 @@ version: '3.8'
 services:
   worker:
     build: .
-    command: celery -A wqb.tasks worker --loglevel=info --concurrency=3
     env_file:
       - .env
+    # Optional: You can override the default concurrency here if needed
+    # environment:
+    #   - WORKER_CONCURRENCY=5
+

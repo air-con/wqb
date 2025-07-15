@@ -13,5 +13,8 @@ COPY . .
 # Install the wqb library in editable mode
 RUN pip install -e .
 
-# Set the default command to keep the container running for interactive use
-CMD ["tail", "-f", "/dev/null"]
+# Set the default command.
+# This syntax uses the value of $CELERY_CONCURRENCY if it's set, otherwise defaults to 3.
+# The ["/bin/sh", "-c", "..."] format is used to ensure the environment variable is evaluated.
+CMD ["/bin/sh", "-c", "exec celery -A wqb.tasks worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-3}"]
+
