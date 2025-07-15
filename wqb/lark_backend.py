@@ -73,54 +73,60 @@ class LarkBackend(BaseBackend):
         if not self.lark_client:
             return
 
-        if not isinstance(result, dict):
-            logger.warning(f"Received result of unexpected type: {type(result)}")
-            result = {'error': 'Result is not a dictionary', 'response_json': str(result)}
-
-        input_data = result.get('input', '')
-        items_to_process = input_data if isinstance(input_data, list) else [input_data]
+        # The result can be a single dict or a list of dicts
+        results_list = result if isinstance(result, list) else [result]
         records_to_create = []
 
-        response_json = result.get('response_json', {})
-        top_level_status = response_json.get("status")
+        for res in results_list:
+            if not isinstance(res, dict):
+                logger.warning(f"Skipping result of unexpected type: {type(res)}")
+                # Optionally create a record indicating the error
+                fields = self._build_record_fields(task_id, {}, "FAILED", False, {'error': f'Result item is not a dictionary, but {type(res)}'})
+                records_to_create.append(AppTableRecord.builder().fields(fields).build())
+                continue
 
-        # --- Handle JSON Array --- 
-        if isinstance(input_data, list):
-            if top_level_status in ["COMPLETE", "WARNING"]:
-                for item in items_to_process:
-                    fields = self._build_record_fields(task_id, item, "SUCCESS", True, response_json)
-                    records_to_create.append(AppTableRecord.builder().fields(fields).build())
-            
-            elif top_level_status and 'children' in response_json:
-                wqb_session = get_wqb_session(logger)
-                child_ids = response_json.get("children", [])
-                if len(child_ids) == len(items_to_process):
-                    tasks = [self._get_child_simulation_status(wqb_session, child_id) for child_id in child_ids]
-                    child_results = await asyncio.gather(*tasks)
+            input_data = res.get('input', '')
+            response_json = res.get('response_json', {})
+            is_array_input = isinstance(input_data, list)
 
-                    for i, item in enumerate(items_to_process):
-                        child_res = child_results[i]
-                        child_status = child_res.get("status") if child_res else "ERROR"
-                        
-                        item_state = "SUCCESS" if child_status in ["COMPLETE", "WARNING"] else "FAILED"
-                        item_success = item_state == "SUCCESS"
-                        if child_status == "CANCELLED":
-                            item_state = "FAILED"
+            if is_array_input:
+                # This logic handles the case where the input to a single task was a list (e.g., simulate_tasks)
+                top_level_status = response_json.get("status")
+                items_to_process = input_data
 
-                        fields = self._build_record_fields(task_id, item, item_state, item_success, child_res or {})
-                        records_to_create.append(AppTableRecord.builder().fields(fields).build())
-                else: # Fallback for mismatch
+                if top_level_status in ["COMPLETE", "WARNING"]:
                     for item in items_to_process:
-                        fields = self._build_record_fields(task_id, item, "FAILED", False, response_json, error="Child ID mismatch")
+                        fields = self._build_record_fields(task_id, item, "SUCCESS", True, response_json)
                         records_to_create.append(AppTableRecord.builder().fields(fields).build())
-            else: # Fallback for other array failures
-                for item in items_to_process:
-                    fields = self._build_record_fields(task_id, item, "FAILED", False, response_json, error=result.get('error'), exception=result.get('exception'), traceback=traceback)
-                    records_to_create.append(AppTableRecord.builder().fields(fields).build())
-        else:
-            # --- Handle Single JSON Object --- 
-            fields = self._build_record_fields(task_id, input_data, state, result.get('success', False), response_json, traceback, result.get('error'), result.get('exception'))
-            records_to_create.append(AppTableRecord.builder().fields(fields).build())
+                
+                elif top_level_status and 'children' in response_json:
+                    wqb_session = get_wqb_session(logger)
+                    child_ids = response_json.get("children", [])
+                    if len(child_ids) == len(items_to_process):
+                        child_tasks = [self._get_child_simulation_status(wqb_session, child_id) for child_id in child_ids]
+                        child_results = await asyncio.gather(*child_tasks)
+
+                        for i, item in enumerate(items_to_process):
+                            child_res = child_results[i]
+                            child_status = child_res.get("status") if child_res else "ERROR"
+                            item_state = "SUCCESS" if child_status in ["COMPLETE", "WARNING"] else "FAILED"
+                            item_success = item_state == "SUCCESS"
+                            if child_status == "CANCELLED": item_state = "FAILED"
+
+                            fields = self._build_record_fields(task_id, item, item_state, item_success, child_res or {})
+                            records_to_create.append(AppTableRecord.builder().fields(fields).build())
+                    else: # Fallback for mismatch
+                        for item in items_to_process:
+                            fields = self._build_record_fields(task_id, item, "FAILED", False, response_json, error="Child ID mismatch")
+                            records_to_create.append(AppTableRecord.builder().fields(fields).build())
+                else: # Fallback for other array failures
+                    for item in items_to_process:
+                        fields = self._build_record_fields(task_id, item, "FAILED", False, response_json, error=res.get('error'), exception=res.get('exception'), traceback=traceback)
+                        records_to_create.append(AppTableRecord.builder().fields(fields).build())
+            else:
+                # This logic handles a single simulation result (from simulate_task or an item from simulate_tasks)
+                fields = self._build_record_fields(task_id, input_data, state, res.get('success', False), response_json, traceback, res.get('error'), res.get('exception'))
+                records_to_create.append(AppTableRecord.builder().fields(fields).build())
 
         if records_to_create:
             request = BatchCreateAppTableRecordRequest.builder().app_token(self.app_token).table_id(self.table_id).request_body(records_to_create).build()
@@ -134,13 +140,10 @@ class LarkBackend(BaseBackend):
 
     # --- Methods below are not used by this backend but are required by the BaseBackend interface ---
     def get_state(self, task_id):
-        # This backend is write-only for results.
         return "PENDING" 
 
     def get_result(self, task_id):
-        # This backend is write-only for results.
         return None
 
     def get_traceback(self, task_id):
-        # This backend is write-only for results.
         return None
