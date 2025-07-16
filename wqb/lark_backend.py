@@ -6,6 +6,7 @@ from celery.backends.base import BaseBackend
 from lark_oapi.api.bitable.v1 import (
     AppTableRecord,
     BatchCreateAppTableRecordRequest,
+    BatchCreateAppTableRecordRequestBody,
     BatchCreateAppTableRecordResponse,
 )
 
@@ -52,8 +53,8 @@ class LarkBackend(BaseBackend):
             "task_id": task_id,
             "state": item_state,
             "success": str(item_success),
-            "input": json.dumps(item_input, ensure_ascii=False),
-            "response_json": json.dumps(response_data, ensure_ascii=False),
+            "input": json.dumps(item_input, ensure_ascii=False, default=str),
+            "response_json": json.dumps(response_data, ensure_ascii=False, default=str),
             "traceback": str(traceback) if traceback else "",
             "error": str(error) if error else "",
             "exception": str(exception) if exception else "",
@@ -73,14 +74,12 @@ class LarkBackend(BaseBackend):
         if not self.lark_client:
             return
 
-        # The result can be a single dict or a list of dicts
         results_list = result if isinstance(result, list) else [result]
         records_to_create = []
 
         for res in results_list:
             if not isinstance(res, dict):
                 logger.warning(f"Skipping result of unexpected type: {type(res)}")
-                # Optionally create a record indicating the error
                 fields = self._build_record_fields(task_id, {}, "FAILED", False, {'error': f'Result item is not a dictionary, but {type(res)}'})
                 records_to_create.append(AppTableRecord.builder().fields(fields).build())
                 continue
@@ -90,7 +89,6 @@ class LarkBackend(BaseBackend):
             is_array_input = isinstance(input_data, list)
 
             if is_array_input:
-                # This logic handles the case where the input to a single task was a list (e.g., simulate_tasks)
                 top_level_status = response_json.get("status")
                 items_to_process = input_data
 
@@ -124,12 +122,13 @@ class LarkBackend(BaseBackend):
                         fields = self._build_record_fields(task_id, item, "FAILED", False, response_json, error=res.get('error'), exception=res.get('exception'), traceback=traceback)
                         records_to_create.append(AppTableRecord.builder().fields(fields).build())
             else:
-                # This logic handles a single simulation result (from simulate_task or an item from simulate_tasks)
                 fields = self._build_record_fields(task_id, input_data, state, res.get('success', False), response_json, traceback, res.get('error'), res.get('exception'))
                 records_to_create.append(AppTableRecord.builder().fields(fields).build())
 
         if records_to_create:
-            request = BatchCreateAppTableRecordRequest.builder().app_token(self.app_token).table_id(self.table_id).request_body(records_to_create).build()
+            # Correctly build the request body using the dedicated builder
+            request_body = BatchCreateAppTableRecordRequestBody.builder().records(records_to_create).build()
+            request = BatchCreateAppTableRecordRequest.builder().app_token(self.app_token).table_id(self.table_id).request_body(request_body).build()
             response: BatchCreateAppTableRecordResponse = self.lark_client.bitable.v1.app_table_record.batch_create(request)
             if not response.success():
                 self._log_lark_error(response, "batch_create_records")
@@ -138,7 +137,6 @@ class LarkBackend(BaseBackend):
         if self.lark_client:
             asyncio.run(self._store_result_async(task_id, result, state, traceback))
 
-    # --- Methods below are not used by this backend but are required by the BaseBackend interface ---
     def get_state(self, task_id):
         return "PENDING" 
 
