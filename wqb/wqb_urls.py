@@ -17,7 +17,8 @@ __all__ = [
     'URL_USERS_SELF_ALPHAS',
 ]
 
-WQB_API_URL = os.environ.get('WQB_API_BASE_URL', 'https://api.worldquantbrain.com')
+ORIGIN_API_URL = 'https://api.worldquantbrain.com'
+WQB_API_URL = os.environ.get('WQB_API_BASE_URL', ORIGIN_API_URL)
 URL_ALPHAS = WQB_API_URL + '/alphas'
 URL_ALPHAS_ALPHAID = URL_ALPHAS + '/{}'
 URL_ALPHAS_ALPHAID_CHECK = URL_ALPHAS_ALPHAID + '/check'

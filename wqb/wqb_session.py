@@ -37,6 +37,7 @@ from . import (
 from .auto_auth_session import AutoAuthSession
 from .filter_range import FilterRange
 from .wqb_urls import (
+    ORIGIN_API_URL,
     URL_ALPHAS_ALPHAID,
     URL_ALPHAS_ALPHAID_CHECK,
     URL_ALPHAS_ALPHAID_SUBMIT,
@@ -1161,7 +1162,9 @@ class WQBSession(AutoAuthSession):
                 # Not a JSON response, probably an error page. Stop.
                 return True
 
-        url = _url.replace('https://api.worldquantbrain.com', WQB_API_URL).replace('http://api.worldquantbrain.com', WQB_API_URL)
+        url = _url\
+            .replace('http://', 'https://')\
+            .replace(ORIGIN_API_URL, WQB_API_URL)
         self.logger.info(f"simulate url: {url} origin {_url}")
         resp = await self.retry(
             GET, url, *args, max_tries=max_tries, log=retry_log, expected=is_simulation_complete, **kwargs
