@@ -48,6 +48,7 @@ from .wqb_urls import (
     URL_OPERATORS,
     URL_SIMULATIONS,
     URL_USERS_SELF_ALPHAS,
+    WQB_API_URL,
 )
 
 __all__ = ['to_multi_alphas', 'concurrent_await', 'WQBSession']
@@ -1119,7 +1120,7 @@ class WQBSession(AutoAuthSession):
             delay_unexpected=5.0,
         )
         try:
-            url = resp.headers[LOCATION]
+            _url = resp.headers[LOCATION]
         except KeyError as e:
             self.logger.warning(
                 '\n'.join(
@@ -1160,6 +1161,7 @@ class WQBSession(AutoAuthSession):
                 # Not a JSON response, probably an error page. Stop.
                 return True
 
+        url = _url.replace('https://api.worldquantbrain.com', WQB_API_URL)
         resp = await self.retry(
             GET, url, *args, max_tries=max_tries, log=retry_log, expected=is_simulation_complete, **kwargs
         )
