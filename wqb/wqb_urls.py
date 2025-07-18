@@ -1,3 +1,5 @@
+import os
+
 __all__ = [
     'WQB_API_URL',
     'URL_ALPHAS',
@@ -15,16 +17,12 @@ __all__ = [
     'URL_USERS_SELF_ALPHAS',
 ]
 
-
-HTTP_API_WORLDQUANTBRAIN_COM = 'http://api.worldquantbrain.com'
-HTTPS_API_WORLDQUANTBRAIN_COM = 'https://api.worldquantbrain.com'
-
-WQB_API_URL = HTTPS_API_WORLDQUANTBRAIN_COM
+WQB_API_URL = os.environ.get('WQB_API_BASE_URL', 'https://api.worldquantbrain.com')
 URL_ALPHAS = WQB_API_URL + '/alphas'
 URL_ALPHAS_ALPHAID = URL_ALPHAS + '/{}'
 URL_ALPHAS_ALPHAID_CHECK = URL_ALPHAS_ALPHAID + '/check'
 # URL_ALPHAS_ALPHAID_SUBMIT = URL_ALPHAS_ALPHAID + '/submit'
-URL_ALPHAS_ALPHAID_SUBMIT = 'http://api.worldquantbrain.com:443/alphas/{}/submit'
+URL_ALPHAS_ALPHAID_SUBMIT = WQB_API_URL + '/alphas/{}/submit'
 URL_AUTHENTICATION = WQB_API_URL + '/authentication'
 URL_DATACATEGORIES = WQB_API_URL + '/data-categories'
 URL_DATAFIELDS = WQB_API_URL + '/data-fields'
