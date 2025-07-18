@@ -1044,6 +1044,12 @@ class WQBSession(AutoAuthSession):
             if expected(resp): # Check for expected response immediately
                 successful_attempt = True
                 break # Success, exit loop
+
+            # Handle 504 Gateway Timeout with a specific delay
+            if resp.status_code == 504:
+                self.logger.warning(f"Received 504 Gateway Timeout. Retrying in 3 seconds...")
+                await asyncio.sleep(3)
+                continue # Skip the rest of the loop and retry immediately
             
             try:
                 await asyncio.sleep(float(resp.headers[RETRY_AFTER]))
