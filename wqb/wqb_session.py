@@ -1161,7 +1161,8 @@ class WQBSession(AutoAuthSession):
                 # Not a JSON response, probably an error page. Stop.
                 return True
 
-        url = _url.replace('https://api.worldquantbrain.com', WQB_API_URL)
+        url = _url.replace('https://api.worldquantbrain.com', WQB_API_URL).replace('http://api.worldquantbrain.com', WQB_API_URL)
+        self.logger.info(f"simulate url: {url} origin {_url}")
         resp = await self.retry(
             GET, url, *args, max_tries=max_tries, log=retry_log, expected=is_simulation_complete, **kwargs
         )
