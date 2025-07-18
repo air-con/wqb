@@ -9,3 +9,11 @@ services:
     # environment:
     #   - WORKER_CONCURRENCY=5
 
+  flower:
+    build: .
+    command: celery -A wqb.tasks flower --address=0.0.0.0 --port=5555
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+

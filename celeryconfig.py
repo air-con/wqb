@@ -12,6 +12,7 @@ task_imports = ('wqb.tasks',)
 
 # 任务安全配置
 task_acks_late = True
+task_acks_on_failure_or_timeout = False
 worker_prefetch_multiplier = 1
 task_reject_on_worker_lost = True
 

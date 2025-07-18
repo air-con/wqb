@@ -85,9 +85,20 @@ class LarkBackend(BaseBackend):
                 continue
 
             input_data = res.get('input', '')
-            response_json = res.get('response_json', {})
+            response_json_str = res.get('response_json', '{}')
             is_array_input = isinstance(input_data, list)
 
+            # Ensure response_json is a dictionary
+            response_json = {}
+            if isinstance(response_json_str, dict):
+                response_json = response_json_str
+            elif isinstance(response_json_str, str):
+                try:
+                    response_json = json.loads(response_json_str)
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not decode response_json string for task {task_id}. Content: {response_json_str[:200]}")
+                    response_json = {"error": "Invalid JSON format", "content": response_json_str}
+            
             if is_array_input:
                 top_level_status = response_json.get("status")
                 items_to_process = input_data
