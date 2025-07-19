@@ -158,42 +158,4 @@ def simulate_task(self, alpha_or_multi_alpha):
         self.logger.error(f"Task failed unexpectedly: {e}", exc_info=True)
         raise
 
-@app.task(base=BaseSimulationTask, bind=True)
-def simulate_tasks(self, sim_targets):
-    """
-    A Celery task to run multiple simulations concurrently.
-    Accepts a list of alphas or multi_alphas.
-    """
-    try:
-        self.logger.info(f"Starting concurrent simulation for {len(sim_targets)} targets.")
-        wqbs = get_wqb_session(self.logger)
 
-        import asyncio
-        # Concurrency limit can be configured as needed
-        responses = asyncio.run(
-            wqbs.concurrent_simulate(
-                sim_targets,
-                concurrency=1,
-                return_exceptions=True # Important to handle individual failures
-            )
-        )
-
-        results = []
-        for target, response in zip(sim_targets, responses):
-            if isinstance(response, Exception):
-                 self.logger.error(f"Concurrent simulation for target {str(target)[:200]}... failed with exception.", exc_info=response)
-                 results.append({
-                    'success': False,
-                    'error': 'Exception during simulation',
-                    'input': target,
-                    'exception': str(response)
-                 })
-                 continue
-            results.append(_format_sim_result(self.logger, target, response))
-
-        self.logger.info(f"Finished concurrent simulation for {len(sim_targets)} targets.")
-        return results
-
-    except Exception as e:
-        self.logger.error(f"Task failed unexpectedly: {e}", exc_info=True)
-        raise

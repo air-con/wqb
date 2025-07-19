@@ -1,122 +1,53 @@
-# wqb
+# WQB Task Processing Library
 
-A better machine lib.
+This project provides a robust, scalable library for interacting with the WorldQuant BRAIN (WQB) platform. It is designed as an asynchronous task processing system using Celery, allowing for efficient, background execution of WQB simulations.
 
-## HIGHLIGHTS
+![wqb logo](https://github.com/rocky-d/wqb/blob/master/img/wqb_1024x1024.png)
 
-- **WorldQuant BRAIN Integration:** Seamlessly interact with the WorldQuant BRAIN platform.
-- **PyPI Package:** Easily install and manage with pip.
-- **Advanced Logging:** Centralized configuration with daily log rotation and console output.
-- **Persistent Session:** Extends `requests.Session` with automatic, expiration-proof authentication.
-- **Asynchronous Operations:** Built-in support for concurrent simulation, checking, and submission tasks.
+## Core Features
 
-## Docker & Celery Usage
+- **Asynchronous by Design:** Leverages Celery to manage a queue of simulation tasks, enabling high-throughput, non-blocking processing.
+- **Resilient WQB Session:** Features an intelligent, persistent session manager that handles WQB API authentication automatically.
+- **Lark/Feishu Result Backend:** Uses a custom Celery result backend to store detailed task results in a Lark Bitable, providing a structured and easily accessible record of all simulations.
+- **Dockerized for Production:** Fully containerized with Docker and Docker Compose for easy, repeatable, and scalable deployments.
+- **Configurable:** Key operational parameters (concurrency, queue name) and all integration credentials are managed via environment variables.
 
-This project is designed for scalable, asynchronous processing using Docker, Celery, and a message broker like RabbitMQ.
+## How It Works
 
-### Prerequisites
+The system consists of two main components:
 
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
+1.  **The Celery Worker (This Project):** A Python application that listens for simulation tasks on a message queue. When a task is received, the worker communicates with the WQB API to run the simulation and stores the result in the configured Lark Bitable.
 
-### Setup
+2.  **The Task Producer (Your Script):** Any application that can send a message to the Celery queue. We provide a `send_tasks.py` script as a basic example of how to dispatch a `simulate_task` to the worker.
 
-1.  **Configure Environment Variables:**
-    Create a `.env` file by copying the example:
-    ```sh
-    cp .env.example .env
-    ```
-    Open `.env` and fill in your details:
-    - `API_KEY`: Your WorldQuant BRAIN API key.
-    - `CELERY_BROKER_URL`: The connection URL for your RabbitMQ instance.
-    - `LARK_APP_ID`, `LARK_APP_SECRET`, `LARK_APP_TOKEN`, `LARK_TABLE_ID`: (Optional) Credentials for the Lark Bitable result backend.
+## Getting Started
 
-2.  **Build and Start Services:**
-    ```sh
-    docker-compose up -d --build
-    ```
+### As a Deployed Service (Docker)
 
-### How to Use
+This is the primary way to use the project for its task processing capabilities.
 
-1.  **Access the Application Container:**
-    Get an interactive shell inside the `app` container:
-    ```sh
-    docker-compose exec app bash
-    ```
+For detailed instructions on how to configure, build, and run the Celery worker using Docker, please refer to the official deployment guide:
 
-2.  **Send a Simulation Task:**
-    From the shell, you can execute a Python script to send tasks.
+**[>> WQB Docker Deployment Guide <<](DOCKER_README.md)**
 
-    **Example: Processing a single simulation**
-    ```python
-    from wqb.tasks import simulate_task
+### As a Library User (Local Usage)
 
-    single_alpha = {'type': 'REGULAR', 'settings': {...}, 'regular': 'open / close'}
+If you only need to use the WQB session manager or other utility functions locally without the Celery worker.
 
-    # Send a single alpha to the Celery queue.
-    task = simulate_task.delay(single_alpha)
-    print(f"Sent task with ID: {task.id}")
-    ```
-
-    **Example: Processing multiple simulations concurrently**
-    ```python
-    from wqb.tasks import simulate_tasks
-
-    # A list of alphas to be processed concurrently
-    sim_targets = [
-        {'type': 'REGULAR', 'settings': {...}, 'regular': 'alpha_1'},
-        {'type': 'REGULAR', 'settings': {...}, 'regular': 'alpha_2'},
-    ]
-
-    task = simulate_tasks.delay(sim_targets)
-    print(f"Sent concurrent task with ID: {task.id}")
-    ```
-
-### Monitoring
-
--   **Worker Logs:** `docker-compose logs -f worker`
--   **Flower Dashboard:** [http://localhost:5555](http://localhost:5555)
-
-## Local Usage (without Docker)
-
-### Prerequisites
-
-- Python >= 3.11
-- An active internet connection
-
-### Installation
-
+**Installation:**
 ```sh
 python -m pip install wqb
 ```
 
-### Usage
-
-**PLEASE ALWAYS REMEMBER:**
-- **Automatic Authentication:** Manual authentication is never needed. The session handles it automatically.
-- **Arguments:** Positional arguments are required; keyword arguments are optional.
-- **Return Types:** Methods return either a `requests.Response` or an `Iterable[requests.Response]`.
-
-### Create a `wqb.WQBSession` object
-
-The session now uses environment variables (`API_DOMAIN`, `API_KEY`) for authentication, which are automatically picked up by the client.
-
+**Usage:**
 ```python
 from wqb import WQBSession
 
-# The session is automatically authenticated using environment variables.
-# No need to pass credentials here.
+# The session handles authentication automatically.
+# Note: Ensure any required authentication details are handled by your local environment.
 wqbs = WQBSession()
 
-# You can now directly make API calls.
+# Make authenticated API calls
 resp = wqbs.search_operators()
-print(resp.ok) # True
+print(resp.ok)
 ```
-
-### API Examples
-
-(The rest of the usage examples for `search_operators`, `locate_dataset`, `simulate`, etc., remain the same but should be called on the `wqbs` object created as shown above.)
-
----
-
-![wqb logo](https://github.com/rocky-d/wqb/blob/master/img/wqb_1024x1024.png)
