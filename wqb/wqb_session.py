@@ -1171,7 +1171,6 @@ class WQBSession(AutoAuthSession):
         url = _url\
             .replace('http://', 'https://')\
             .replace(ORIGIN_API_URL, WQB_API_URL)
-        self.logger.info(f"simulate url: {url} origin {_url}")
         resp = await self.retry(
             GET, url, *args, max_tries=max_tries, log=retry_log, expected=is_simulation_complete, **kwargs
         )
