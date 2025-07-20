@@ -5,6 +5,9 @@ services:
     build: .
     env_file:
       - .env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     # Optional: You can override the default concurrency here if needed
     # environment:
     #   - WORKER_CONCURRENCY=5
@@ -16,4 +19,7 @@ services:
       - "5555:5555"
     env_file:
       - .env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
