@@ -1,14 +1,41 @@
 from wqb.logging_config import setup_logging
+from kombu import Exchange, Queue
+import os
 
 # Initialize logging as the first step
 setup_logging()
 
-import os
+# --- Dynamic Queue Configuration ---
+# Get the queue name from the existing CELERY_QUEUE environment variable, with 'default' as a fallback.
+CELERY_QUEUE_NAME = os.environ.get('CELERY_QUEUE', 'default')
 
 # 基础配置
 broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@localhost:5672//')
 result_backend = 'wqb.lark_backend.LarkBackend'
 task_imports = ('wqb.tasks',)
+
+# 启用任务优先级
+# See: https://docs.celeryq.dev/en/stable/userguide/routing.html#priority
+task_create_missing_queues = False # It's a good practice to avoid creating queues by mistake.
+task_queues = (
+    Queue(
+        CELERY_QUEUE_NAME,
+        Exchange(CELERY_QUEUE_NAME),  # 👈 显式使用同名 direct exchange
+        routing_key=CELERY_QUEUE_NAME,
+        # The routing key is now explicitly set in task_routes
+        queue_arguments={'x-max-priority': 10}
+    ),
+)
+
+# Explicitly route all tasks to our defined queue.
+# This is more robust than relying on `task_default_queue`.
+task_routes = {
+    'wqb.tasks.*': {
+        'queue': CELERY_QUEUE_NAME,
+        'routing_key': CELERY_QUEUE_NAME,
+    }
+}
+
 
 # 任务安全配置
 task_acks_late = True
