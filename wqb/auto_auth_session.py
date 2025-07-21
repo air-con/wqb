@@ -81,19 +81,45 @@ class AutoAuthSession(Session):
         if not self.auth_inited:
             self.auth_inited = True
             self.auth_request()
+
         for tries in range(1, 1 + max_tries):
             resp = super().request(method, url, *args, **kwargs)
             if expected(resp):
-                break
+                break # Success, exit the loop
+
             self.logger.warning(f"{self}.request(...) [{tries} tries]: {resp.status_code} {resp.reason} {resp.text} {resp.elapsed} {resp.headers}")
+
+            # --- Start of the final, focused error handling logic ---
+
+            # Special exception for 400 Bad Request: abort immediately.
+            if resp.status_code == 400:
+                self.logger.error(f"Received 400 Bad Request. This is a non-retryable client error. Aborting.")
+                break
+
+            # For all other errors, use the original retry/re-login logic.
+            is_simulation_limit = False
+            try:
+                response_json = resp.json()
+                if isinstance(response_json, dict):
+                    if 'SIMULATION_LIMIT_EXCEEDED' in response_json.get('detail', ''):
+                        is_simulation_limit = True
+            except ValueError:
+                pass # Not a JSON response
+
             if resp.status_code == 504:
+                self.logger.warning(f"Received 504 Gateway Timeout. Retrying in {delay_unexpected} seconds...")
                 time.sleep(delay_unexpected)
-            elif 'SIMULATION_LIMIT_EXCEEDED' in resp.json().get('detail', ''):
+            elif is_simulation_limit: # This is a specific type of 429 error
+                self.logger.warning(f"Simulation limit exceeded. Retrying in {10 * delay_unexpected} seconds...")
                 time.sleep(10 * delay_unexpected)
             else:
+                self.logger.warning("Attempting to recover from error by re-authenticating.")
                 time.sleep(delay_unexpected)
-                self.auth_request() # Call the new auth_request
-        else:
+                self.auth_request() # Re-authenticate for other errors (e.g., 401, 403, 5xx)
+
+            # --- End of the final logic ---
+
+        else: # This block now only runs if the loop completes without a `break`
             self.logger.warning(
                 '\n'.join(
                     (
