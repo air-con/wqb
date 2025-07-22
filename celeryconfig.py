@@ -14,6 +14,7 @@ broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@localhost:5
 result_backend = 'wqb.lark_backend.LarkBackend'
 task_imports = ('wqb.tasks',)
 worker_direct = False
+worker_enable_remote_control = False
 
 # 启用任务优先级
 # See: https://docs.celeryq.dev/en/stable/userguide/routing.html#priority
