@@ -15,6 +15,8 @@ result_backend = 'wqb.lark_backend.LarkBackend'
 task_imports = ('wqb.tasks',)
 worker_direct = False
 worker_enable_remote_control = False
+worker_send_task_events = False     # 禁用 worker 发送任务事件
+task_send_sent_event = False       # 禁用任务发送事件
 
 # 启用任务优先级
 # See: https://docs.celeryq.dev/en/stable/userguide/routing.html#priority
