@@ -9,48 +9,29 @@ setup_logging()
 # Get the queue name from the existing CELERY_QUEUE environment variable, with 'default' as a fallback.
 CELERY_QUEUE_NAME = os.environ.get('CELERY_QUEUE', 'default')
 
-# 新增：紧急队列名称配置
-URGENT_QUEUE_NAME = os.environ.get('URGENT_QUEUE', 'urgent')
-
-# 新增：是否启用紧急队列（可选，用于性能优化）
-ENABLE_URGENT_QUEUE = os.environ.get('ENABLE_URGENT_QUEUE', 'true').lower() == 'true'
-
-# 基础配置 - 修改为Redis
-broker_url = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+# 基础配置
+broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@localhost:5672//')
 result_backend = 'wqb.lark_backend.LarkBackend'
 task_imports = ('wqb.tasks',)
 
-# 启用任务优先级 - 修改为Redis双队列模式
+# 启用任务优先级
+# See: https://docs.celeryq.dev/en/stable/userguide/routing.html#priority
 task_create_missing_queues = False # It's a good practice to avoid creating queues by mistake.
-
-# 动态队列配置
-if ENABLE_URGENT_QUEUE:
-    task_queues = (
-        # 紧急队列 - 高优先级
-        Queue(
-            URGENT_QUEUE_NAME,
-            Exchange(URGENT_QUEUE_NAME),
-            routing_key=URGENT_QUEUE_NAME,
-        ),
-        # 普通队列
-        Queue(
-            CELERY_QUEUE_NAME,
-            Exchange(CELERY_QUEUE_NAME),
-            routing_key=CELERY_QUEUE_NAME,
-        ),
-    )
-else:
-    # 只使用普通队列（性能优化选项）
-    task_queues = (
-        Queue(
-            CELERY_QUEUE_NAME,
-            Exchange(CELERY_QUEUE_NAME),
-            routing_key=CELERY_QUEUE_NAME,
-        ),
-    )
+task_queues = (
+    Queue(
+        CELERY_QUEUE_NAME,
+        Exchange(CELERY_QUEUE_NAME),  # 👈 显式使用同名 direct exchange
+        routing_key=CELERY_QUEUE_NAME,
+        # The routing key is now explicitly set in task_routes
+        queue_arguments={'x-max-priority': 10},
+        durable=True,
+        auto_delete=False
+    ),
+)
 
 # Explicitly route all tasks to our defined queue.
 # This is more robust than relying on `task_default_queue`.
+task_default_queue = CELERY_QUEUE_NAME
 task_routes = {
     'wqb.tasks.*': {
         'queue': CELERY_QUEUE_NAME,
@@ -58,8 +39,6 @@ task_routes = {
     }
 }
 
-# 默认队列设置
-task_default_queue = CELERY_QUEUE_NAME
 
 # 任务安全配置
 task_acks_late = True
