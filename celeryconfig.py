@@ -13,27 +13,28 @@ broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@localhost:5
 result_backend = 'wqb.lark_backend.LarkBackend'
 task_imports = ('wqb.tasks',)
 
-# === 精准的事件和结果配置 ===
-
-# 1. 我们关心任务的结果，这样才会触发 result_backend
-#    因此，我们不能设置 task_ignore_result = True
-
-# 2. 我们不希望任务在“已发送”时就产生事件
-task_send_sent_event = False
-
-# 3. 我们不追踪“任务已开始”的状态，这可以节省一次通信
-task_track_started = False
-
-# 4. 我们不向监控工具（如Flower）发送通用的任务事件，这是节省流量的关键
-worker_send_task_events = False
-
-# 5. 禁用远程控制和广播，这是节省流量的另一个关键
-worker_enable_remote_control = False
+# === 最全面的禁用配置 ===
+# 禁用所有自动队列创建
+task_create_missing_queues = False
 worker_direct = False
+worker_enable_remote_control = False
+
+# 禁用所有事件系统
+worker_send_task_events = False
+task_send_sent_event = False
+task_track_started = False
+task_ignore_result = False
+worker_hijack_root_logger = False
 
 # 禁用集群功能
 worker_disable_rate_limits = True
 worker_pool_restarts = False
+
+# 明确设置所有事件相关配置为 False
+CELERY_SEND_EVENTS = False
+CELERY_SEND_TASK_EVENTS = False
+CELERY_TASK_SEND_SENT_EVENT = False
+CELERY_WORKER_SEND_TASK_EVENTS = False
 
 # 队列配置 - 只定义我们需要的队列
 task_queues = (
@@ -76,3 +77,15 @@ task_annotations = {
 
 worker_max_tasks_per_child = 2000
 worker_max_memory_per_child = 300000
+
+# === 最后的保险措施：强制覆盖任何可能的事件配置 ===
+import sys
+if 'celery' in sys.modules:
+    from celery import current_app
+    current_app.conf.update(
+        worker_send_task_events=False,
+        task_send_sent_event=False,
+        task_track_started=False,
+        worker_enable_remote_control=False,
+        worker_direct=False,
+    )
